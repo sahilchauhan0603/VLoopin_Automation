@@ -1,0 +1,38 @@
+{
+  "qaEngineerRequisition": {
+    "jobTitle": "QA Engineer",
+    "department": "Consulting",
+    "hiringType": "Lateral",
+    "stream": "QA",
+    "designation": "Software Engineer",
+    "location": "Noida",
+    "workMode": "Hybrid",
+    "employmentType": "Full-Time",
+    "duration": "Permanent",
+    "headcount": "1",
+    "minimumExperience": "2",
+    "maximumExperience": "3",
+    "urgency": "Low",
+    "client": "Kipu",
+    "project": "WO#14 Opex",
+    "jobDescription": "We are looking for a QA Engineer with 2-3 years of experience in manual and automation testing. The candidate should have expertise in test planning, test case design, execution, and defect tracking. Experience with Selenium, Playwright, or similar automation frameworks is preferred. Strong knowledge of Agile methodologies and CI/CD pipelines is a plus."
+  },
+  "minimalDraftRequisition": {
+    "jobTitle": "Test Draft Requisition",
+    "department": "Consulting",
+    "hiringType": "Leadership",
+    "stream": "QA",
+    "designation": "Software Engineer",
+    "location": "Noida",
+    "workMode": "Hybrid",
+    "employmentType": "",
+    "duration": "",
+    "headcount": "1",
+    "minimumExperience": "",
+    "maximumExperience": "",
+    "urgency": "",
+    "client": "",
+    "project": "",
+    "jobDescription": "We are looking for a QA Engineer with 2-3 years of experience in manual and automation testing. The candidate should have expertise in test planning, test case design, execution, and defect tracking. Experience with Selenium, Playwright, or similar automation frameworks is preferred. Strong knowledge of Agile methodologies and CI/CD pipelines is a plus, but not mandatory."
+  }
+}

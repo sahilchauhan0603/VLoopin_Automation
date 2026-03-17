@@ -1,0 +1,25 @@
+{
+  "name": "loopin-automation",
+  "version": "1.0.0",
+  "description": "Playwright UI Automation Framework for Loopin – POM & Data-driven",
+  "private": true,
+  "scripts": {
+    "test": "npx playwright test",
+    "test:ui": "npx playwright test --ui",
+    "test:headed": "npx playwright test --headed",
+    "test:debug": "npx playwright test --debug",
+    "test:login": "npx playwright test tests/login.spec.ts",
+    "test:requisition": "npx playwright test tests/create-requisition.spec.ts",
+    "test:dashboard": "npx playwright test tests/employee-dashboard.spec.ts",
+    "report": "npx playwright show-report playwright-report",
+    "install:browsers": "npx playwright install --with-deps chromium msedge"
+  },
+  "devDependencies": {
+    "@playwright/test": "latest",
+    "@types/node": "latest",
+    "@types/speakeasy": "latest",
+    "dotenv": "latest",
+    "speakeasy": "latest",
+    "typescript": "latest"
+  }
+}

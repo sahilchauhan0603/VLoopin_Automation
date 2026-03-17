@@ -1,0 +1,12 @@
+{
+  "validLogin": {
+    "description": "Valid Microsoft login with TOTP MFA",
+    "expectedRedirectPattern": "/(employee-dashboard|dashboard|requisitions)"
+  },
+  "loginPageValidation": {
+    "heading": "Welcome to vHire Portal",
+    "buttonText": "Sign in with Microsoft",
+    "description": "Unified Hiring System",
+    "logoAlt": "Veersa LOOPIN Logo"
+  }
+}

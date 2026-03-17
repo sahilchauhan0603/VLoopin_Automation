@@ -1,0 +1,17 @@
+{
+  "validReferral": {
+    "firstName": "Priya",
+    "lastName": "Sharma",
+    "email": "priya.sharma.referral@example.com",
+    "phone": "9876543210",
+    "currentLocation": "Noida, Uttar Pradesh",
+    "totalExperience": "5",
+    "currentCompany": "Tech Solutions Pvt Ltd",
+    "currentDesignation": "Senior QA Engineer",
+    "currentCTC": "1500000",
+    "expectedCTC": "1800000",
+    "primarySkills": "Playwright, TypeScript, API Testing, Selenium",
+    "howDoYouKnow": "I have worked with Priya for more than three years on multiple enterprise QA automation projects and have directly seen her ability to design robust test strategies, mentor team members, and deliver consistently under tight deadlines.",
+    "whyRecommend": "Priya combines deep test automation expertise with strong ownership and communication. She proactively identifies quality risks, collaborates well with cross-functional teams, and consistently drives releases with confidence and measurable quality improvements."
+  }
+}

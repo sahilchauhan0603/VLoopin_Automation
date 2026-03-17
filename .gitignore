@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Environment (secrets)
+.env
+
+# Auth state (generated at runtime)
+.auth/
+
+# Persistent Edge profile (machine-specific, contains session data)
+.edge-profile/
+
+# Test artifacts
+test-results/
+playwright-report/
+screenshots/
+
+# Build
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
