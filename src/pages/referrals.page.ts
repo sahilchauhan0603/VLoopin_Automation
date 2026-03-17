@@ -1,4 +1,4 @@
-import { expect } from "@playwright/test";
+import { expect, Locator } from "@playwright/test";
 import { BasePage } from "./base.page";
 
 export interface ReferralData {
@@ -8,27 +8,27 @@ export interface ReferralData {
   phone: string;
   currentLocation: string;
   totalExperience: string;
+  relevantExperience?: string;
   currentCompany: string;
-  currentDesignation: string;
+  currentDesignation?: string;
   currentCTC: string;
   expectedCTC: string;
+  noticePeriod?: string;
   primarySkills: string;
+  secondarySkills?: string;
+  preferredLocations?: string;
+  yearOfPassing?: string;
+  candidatePan?: string;
   howDoYouKnow: string;
   whyRecommend: string;
 }
 
 export class ReferralsPage extends BasePage {
-  readonly dashboardHeading = this.page.getByRole("heading", {
-    name: "Employee Dashboard",
-  });
-  readonly referCandidateBtn = this.page.getByRole("button", {
-    name: /Refer Candidate/i,
-  });
   readonly submitReferralBtn = this.page.getByRole("button", {
     name: /Submit Referral/i,
   });
   readonly candidateInfoTitle = this.page
-    .locator("text=/Candidate Information/i")
+    .getByText(/Candidate Information/i)
     .first();
   readonly resumeInfoDialog = this.page.getByRole("alertdialog", {
     name: /Resume Upload Information/i,
@@ -36,74 +36,134 @@ export class ReferralsPage extends BasePage {
   readonly resumeInfoGotItBtn = this.page.getByRole("button", {
     name: /Got it/i,
   });
-  readonly toastMessage = this.page
-    .locator('[role="status"], [data-sonner-toast], .sonner-toast')
-    .first();
-  readonly candidateEmailInput = this.page.getByPlaceholder(/Enter Candidate email/i);
+  readonly resumeInput = this.page.getByTestId("input-resume");
+  readonly resumeRemoveBtn = this.page.getByRole("button", { name: /Remove/i });
+  readonly resumeErrorText = this.page.getByText(
+    /resume is required\. please upload candidate's resume/i
+  );
+  readonly candidateFirstNameInput = this.page.getByTestId(
+    "input-candidate-first-name"
+  );
+  readonly candidateLastNameInput = this.page.getByTestId(
+    "input-candidate-last-name"
+  );
+  readonly candidateEmailInput = this.page.getByTestId("input-candidate-email");
+  readonly candidatePhoneInput = this.page.getByTestId("input-candidate-phone");
+  readonly candidatePanInput = this.page.getByTestId("input-candidate-pan");
+  readonly candidateLocationInput = this.page.getByTestId(
+    "input-candidate-location"
+  );
+  readonly requisitionSelect = this.page.getByTestId("select-requisition");
+  readonly totalExperienceInput = this.page.getByTestId("input-total-experience");
+  readonly relevantExperienceInput = this.page.getByTestId(
+    "input-relevant-experience"
+  );
+  readonly currentCompanyInput = this.page.getByTestId("input-current-company");
+  readonly currentDesignationInput = this.page.getByTestId(
+    "input-current-designation"
+  );
+  readonly currentCTCInput = this.page.getByTestId("input-current-ctc");
+  readonly expectedCTCInput = this.page.getByTestId("input-expected-ctc");
+  readonly noticePeriodInput = this.page.getByTestId("input-notice-period");
+  readonly primarySkillsTextarea = this.page.getByTestId("textarea-primary-skills");
+  readonly yearOfPassingInput = this.page.getByTestId("input-year-of-passing");
+  readonly relationshipSelect = this.page.getByTestId("select-relationship");
+  readonly howDoYouKnowTextarea = this.page.getByTestId("textarea-how-know");
+  readonly whyRecommendTextarea = this.page.getByTestId("textarea-why-recommend");
   readonly duplicateReferralWarning = this.page.getByText(
     "You can't submit a referral for this candidate as they are already registered in our system."
   );
+  readonly parsingResumeText = this.page.getByText(/Parsing resume\.\.\./i);
 
   async openSubmitReferralForm(): Promise<void> {
-    await this.navigateTo("/employee-dashboard");
-    await expect(this.dashboardHeading).toBeVisible({ timeout: 15000 });
-    await this.referCandidateBtn.click();
+    await this.navigateTo("/referrals/submit");
     await this.page.waitForLoadState("domcontentloaded");
+
+    await this.resumeInfoDialog
+      .waitFor({ state: "visible", timeout: 10000 })
+      .catch(() => {});
 
     if (await this.resumeInfoDialog.isVisible().catch(() => false)) {
       await this.resumeInfoGotItBtn.click();
+      await expect(this.resumeInfoDialog).toBeHidden({ timeout: 10000 });
     }
 
     await expect(this.submitReferralBtn).toBeVisible({ timeout: 15000 });
     await expect(this.candidateInfoTitle).toBeVisible({ timeout: 15000 });
   }
 
-  async submitBlankReferral(): Promise<void> {
-    await this.submitReferralBtn.scrollIntoViewIfNeeded();
-    await this.submitReferralBtn.click();
+  async uploadResume(
+    file:
+      | string
+      | {
+          name: string;
+          mimeType: string;
+          buffer: Buffer;
+        }
+  ): Promise<void> {
+    await this.resumeInput.setInputFiles(file);
   }
 
-  async uploadResume(filePath: string): Promise<void> {
-    await this.page.locator('input[type="file"]').first().setInputFiles(filePath);
+  async waitForResumeProcessingToFinish(): Promise<void> {
+    await this.parsingResumeText.waitFor({ state: "hidden", timeout: 30000 }).catch(
+      () => {}
+    );
   }
 
-  async fillReferralForm(data: ReferralData): Promise<void> {
-    await this.page.getByPlaceholder(/e\.g\., Priya/i).fill(data.firstName);
-    await this.page.getByPlaceholder(/e\.g\., Sharma/i).fill(data.lastName);
-    await this.page.getByPlaceholder(/Enter Candidate email/i).fill(data.email);
-    await this.page.getByPlaceholder(/\+91 98765 43210/i).fill(data.phone);
-    await this.page
-      .getByPlaceholder(/e\.g\., Mumbai, Maharashtra/i)
-      .fill(data.currentLocation);
+  async fillReferralForm(
+    data: ReferralData,
+    options?: {
+      selectRequisition?: boolean;
+      selectRelationship?: boolean;
+    }
+  ): Promise<void> {
+    const { selectRequisition = true, selectRelationship = true } = options ?? {};
 
-    await this.selectOptionFromComboboxPlaceholder("Select requisition");
+    await this.fillInput(this.candidateFirstNameInput, data.firstName);
+    await this.fillInput(this.candidateLastNameInput, data.lastName);
+    await this.fillInput(this.candidateEmailInput, data.email);
+    await this.fillInput(this.candidatePhoneInput, data.phone);
+    await this.fillInput(this.candidateLocationInput, data.currentLocation);
 
-    await this.page
-      .locator('input[type="number"], input[role="spinbutton"]')
-      .first()
-      .fill(data.totalExperience);
-    await this.page
-      .getByPlaceholder(/e\.g\., Tech Solutions Pvt Ltd/i)
-      .fill(data.currentCompany);
-    await this.page
-      .getByPlaceholder(/e\.g\., Senior Software Engineer/i)
-      .fill(data.currentDesignation);
-    await this.page.getByPlaceholder(/e\.g\., 15,00,000/i).fill(data.currentCTC);
-    await this.page.getByPlaceholder(/e\.g\., 18,00,000/i).fill(data.expectedCTC);
+    if (data.candidatePan !== undefined) {
+      await this.fillInput(this.candidatePanInput, data.candidatePan);
+    }
 
-    await this.selectOptionFromComboboxPlaceholder("Select notice period");
+    if (selectRequisition) {
+      await this.selectFirstAvailableOption(this.requisitionSelect);
+    }
 
-    await this.page
-      .getByPlaceholder(/e\.g\., Java, Spring Boot, Microservices/i)
-      .fill(data.primarySkills);
-    await this.page
-      .getByPlaceholder(/Describe how you know the candidate/i)
-      .fill(data.howDoYouKnow);
-    await this.page
-      .getByPlaceholder(/Tell us what makes this candidate a great fit/i)
-      .fill(data.whyRecommend);
+    await this.fillInput(this.totalExperienceInput, data.totalExperience);
 
-    await this.selectOptionFromComboboxPlaceholder("Select relationship");
+    if (data.relevantExperience !== undefined) {
+      await this.fillInput(this.relevantExperienceInput, data.relevantExperience);
+    }
+
+    await this.fillInput(this.currentCompanyInput, data.currentCompany);
+
+    if (data.currentDesignation !== undefined) {
+      await this.fillInput(this.currentDesignationInput, data.currentDesignation);
+    }
+
+    await this.fillInput(this.currentCTCInput, data.currentCTC);
+    await this.fillInput(this.expectedCTCInput, data.expectedCTC);
+
+    if (data.noticePeriod !== undefined) {
+      await this.fillInput(this.noticePeriodInput, data.noticePeriod);
+    }
+
+    await this.fillInput(this.primarySkillsTextarea, data.primarySkills);
+
+    if (data.yearOfPassing !== undefined) {
+      await this.fillInput(this.yearOfPassingInput, data.yearOfPassing);
+    }
+
+    if (selectRelationship) {
+      await this.selectFirstAvailableOption(this.relationshipSelect);
+    }
+
+    await this.fillInput(this.howDoYouKnowTextarea, data.howDoYouKnow);
+    await this.fillInput(this.whyRecommendTextarea, data.whyRecommend);
   }
 
   async submitReferral(): Promise<void> {
@@ -112,7 +172,11 @@ export class ReferralsPage extends BasePage {
   }
 
   async enterCandidateEmail(email: string): Promise<void> {
-    await this.candidateEmailInput.fill(email);
+    await this.fillInput(this.candidateEmailInput, email);
+  }
+
+  async expectResumeRequiredError(): Promise<void> {
+    await expect(this.resumeErrorText).toBeVisible({ timeout: 10000 });
   }
 
   async verifyDuplicateReferralBlocked(): Promise<void> {
@@ -121,6 +185,10 @@ export class ReferralsPage extends BasePage {
   }
 
   async verifyReferralSubmissionSuccess(): Promise<void> {
+    // await Promise.race([
+    //   this.expectToast(/Referral submitted successfully!/i, 30000),
+    //   this.page.waitForURL(/employee-dashboard/i, { timeout: 30000 }),
+    // ]);
     const successToast = this.page
       .locator('[role="status"], [data-sonner-toast], .sonner-toast')
       .filter({ hasText: /success|submitted/i })
@@ -128,33 +196,61 @@ export class ReferralsPage extends BasePage {
     await expect(successToast).toBeVisible({ timeout: 20000 });
   }
 
-  async verifyRequiredFieldErrors(fieldLabels: string[]): Promise<void> {
-    for (const field of fieldLabels) {
-      const error = this.page
-        .locator(`text=/${this.escapeTextPattern(field)}.*(is required|required|cannot be empty|empty)/i`)
-        .first();
-      await expect(error).toBeVisible({ timeout: 5000 });
+  async expectToast(message: string | RegExp, timeout = 15000): Promise<void> {
+    const textMatcher =
+      typeof message === "string"
+        ? new RegExp(this.escapePattern(message), "i")
+        : message;
+    const toast = this.page.getByText(textMatcher).last();
+
+    await expect(toast).toBeVisible({ timeout });
+  }
+
+  async removeResume(): Promise<void> {
+    await this.resumeRemoveBtn.click();
+  }
+
+  private async selectFirstAvailableOption(trigger: Locator): Promise<void> {
+    await trigger.waitFor({ state: "visible", timeout: 15000 });
+    await expect(trigger).toBeEnabled({ timeout: 15000 });
+    await trigger.scrollIntoViewIfNeeded();
+    const tagName = await trigger.evaluate((node) => node.tagName.toLowerCase());
+
+    if (tagName === "select") {
+      const options = await trigger.locator("option").all();
+      if (options.length > 1) {
+        const value = await options[1].getAttribute("value");
+        if (value) {
+          await trigger.selectOption(value);
+          return;
+        }
+      }
     }
-  }
 
-  private escapeTextPattern(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  }
+    await trigger.click();
 
-  private async selectOptionFromComboboxPlaceholder(
-    placeholderText: string
-  ): Promise<void> {
-    const combobox = this.page
-      .locator('[role="combobox"]')
-      .filter({ hasText: new RegExp(this.escapeTextPattern(placeholderText), "i") })
+    const popupOption = this.page
+      .locator(
+        [
+          '[cmdk-item]:not([aria-disabled="true"])',
+          '[role="option"]:not([aria-disabled="true"])',
+          '[data-radix-popper-content-wrapper] [data-value]',
+          '[data-radix-select-content] [role="option"]:not([aria-disabled="true"])',
+        ].join(", ")
+      )
       .first();
 
-    await combobox.click();
+    if (await popupOption.isVisible().catch(() => false)) {
+      await popupOption.scrollIntoViewIfNeeded();
+      await popupOption.click();
+      return;
+    }
 
-    const listbox = this.page.locator('[role="listbox"]');
-    await expect(listbox.first()).toBeVisible({ timeout: 10000 });
+    await this.page.keyboard.press("ArrowDown");
+    await this.page.keyboard.press("Enter");
+  }
 
-    const option = listbox.first().getByRole("option").first();
-    await option.click();
+  private escapePattern(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 }
