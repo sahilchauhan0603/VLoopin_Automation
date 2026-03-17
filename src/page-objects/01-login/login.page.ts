@@ -1,7 +1,7 @@
 import { Page, expect } from "@playwright/test";
-import { BasePage } from "./base.page";
-import { generateTOTP } from "../utils/totp.helper";
-import { ENV } from "../config/env.config";
+import { BasePage } from "../00-shared/base.page";
+import { generateTOTP } from "../../utils/totp.helper";
+import { ENV } from "../../config/env.config";
 
 export interface LoginCredentials {
   username: string;

@@ -1,5 +1,5 @@
 import { test as setup, expect } from "@playwright/test";
-import { LoginPage } from "../pages/login.page";
+import { LoginPage } from "../page-objects/01-login/login.page";
 import { ENV } from "../config/env.config";
 import * as fs from "fs";
 import * as path from "path";

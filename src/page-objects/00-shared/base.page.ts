@@ -1,5 +1,5 @@
 import { Page, Locator } from "@playwright/test";
-import { ENV } from "../config/env.config";
+import { ENV } from "../../config/env.config";
 
 /**
  * Abstract base page providing shared helper methods.

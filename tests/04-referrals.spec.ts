@@ -1,6 +1,6 @@
 import { test, expect } from "../src/fixtures/test.fixture";
 import referralData from "../src/data/referral.data.json";
-import type { ReferralData } from "../src/pages/referrals.page";
+import type { ReferralData } from "../src/page-objects/04-referrals/referrals.page";
 
 test.describe("Referrals - Negative and Edge Coverage", () => {
   const baseReferralData = referralData.validReferral as ReferralData;
@@ -40,7 +40,6 @@ test.describe("Referrals - Negative and Edge Coverage", () => {
 
   test("TC_REFERRALS_03: Create referral successfully", async ({
     referralsPage,
-    page,
   }) => {
     await referralsPage.uploadResume("src/data/test-resume.doc");
     await referralsPage.waitForResumeProcessingToFinish();

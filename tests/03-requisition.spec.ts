@@ -1,6 +1,6 @@
 ﻿import { test, expect } from "../src/fixtures/test.fixture";
 import requisitionData from "../src/data/requisition.data.json";
-import type { RequisitionData } from "../src/pages";
+import type { RequisitionData } from "../src/page-objects/02-requisitions/requisition-form.page";
 
 test.describe("Requisitions - Test Suite", () => {
   test.beforeEach(async ({ requisitionListPage }) => {

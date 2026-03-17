@@ -1,6 +1,7 @@
 import { test, expect } from "../src/fixtures/test.fixture";
 import { ENV } from "../src/config/env.config";
 import loginData from "../src/data/login.data.json";
+// import type { LoginData } from "../src/page-objects/01-login/login.page";
 
 test.describe("Login Page - Test Suite", () => {
   test.use({ storageState: { cookies: [], origins: [] } });

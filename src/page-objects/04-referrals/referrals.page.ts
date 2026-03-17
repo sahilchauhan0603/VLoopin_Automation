@@ -1,5 +1,5 @@
 import { expect, Locator } from "@playwright/test";
-import { BasePage } from "./base.page";
+import { BasePage } from "../00-shared/base.page";
 
 export interface ReferralData {
   firstName: string;
