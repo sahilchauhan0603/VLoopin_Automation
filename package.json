@@ -8,6 +8,7 @@
     "test:ui": "npx playwright test --ui",
     "test:headed": "npx playwright test --headed",
     "test:debug": "npx playwright test --debug",
+    "encrypt:password": "node scripts/encrypt-password.js",
     "test:login": "npx playwright test tests/login.spec.ts",
     "test:requisition": "npx playwright test tests/create-requisition.spec.ts",
     "test:dashboard": "npx playwright test tests/employee-dashboard.spec.ts",

@@ -92,10 +92,28 @@ Edit `.env` with your credentials:
 
 ```
 LOOPIN_BASE_URL=https://vhiredev.z22.web.core.windows.net
-LOOPIN_USERNAME=sahil.chauhan@veersatech.com
+LOOPIN_USERNAME=youremail@veersatech.com
 LOOPIN_PASSWORD=<your-password>
 LOOPIN_TOTP_SECRET=<your-base32-totp-secret>
 ```
+
+You can also store the password in encrypted form instead of plain text:
+
+```bash
+npm run encrypt:password -- --generate-key "your-password"
+```
+
+Then place the output in your environment:
+
+```
+LOOPIN_USERNAME=sahil.chauhan@veersatech.com
+LOOPIN_PASSWORD_ENCRYPTED=encv1:<iv>:<tag>:<ciphertext>
+LOOPIN_PASSWORD_KEY=<base64-32-byte-key>
+```
+
+If both `LOOPIN_PASSWORD` and `LOOPIN_PASSWORD_ENCRYPTED` are present, the plain-text value is used first for backward compatibility.
+
+> For real security, keep `LOOPIN_PASSWORD_KEY` outside the same shared `.env` file whenever possible, such as a machine-level environment variable or CI secret.
 
 > **TOTP Secret**: The base32-encoded secret from your Microsoft Authenticator setup. If you only have a QR code, decode it to extract the secret parameter.
 

@@ -1,5 +1,6 @@
 import * as dotenv from "dotenv";
 import * as path from "path";
+import { decryptPassword } from "../utils/password-crypto";
 
 // Silence dotenvx output logs in the terminal
 process.env.DOTENV_QUIET = "true";
@@ -31,10 +32,39 @@ function getBooleanEnv(name: string, defaultValue = false): boolean {
   return ["1", "true", "yes", "y", "on"].includes(raw);
 }
 
+function getLoopinPassword(): string {
+  const plainPassword = process.env.LOOPIN_PASSWORD?.trim();
+  if (plainPassword) {
+    return plainPassword;
+  }
+
+  const encryptedPassword = process.env.LOOPIN_PASSWORD_ENCRYPTED?.trim();
+  if (!encryptedPassword) {
+    throw new Error(
+      "[ENV] Missing required variable: LOOPIN_PASSWORD or LOOPIN_PASSWORD_ENCRYPTED"
+    );
+  }
+
+  const encryptionKey = process.env.LOOPIN_PASSWORD_KEY?.trim();
+  if (!encryptionKey) {
+    throw new Error(
+      "[ENV] LOOPIN_PASSWORD_KEY is required when LOOPIN_PASSWORD_ENCRYPTED is set"
+    );
+  }
+
+  try {
+    return decryptPassword(encryptedPassword, encryptionKey);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown password decryption error";
+    throw new Error(`[ENV] Failed to decrypt LOOPIN_PASSWORD_ENCRYPTED: ${message}`);
+  }
+}
+
 export const ENV = {
   BASE_URL: getRequiredEnv("LOOPIN_BASE_URL"),
   USERNAME: getRequiredEnv("LOOPIN_USERNAME"),
-  PASSWORD: getRequiredEnv("LOOPIN_PASSWORD"),
+  PASSWORD: getLoopinPassword(),
   TOTP_SECRET: getRequiredEnv("LOOPIN_TOTP_SECRET"),
   STORAGE_STATE_PATH: path.resolve(__dirname, "../../.auth/storage-state.json"),
   TIMEOUT: getRequiredNumberEnv("LOOPIN_TIMEOUT"),
