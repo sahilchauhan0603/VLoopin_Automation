@@ -95,6 +95,7 @@ LOOPIN_BASE_URL=https://vhiredev.z22.web.core.windows.net
 LOOPIN_USERNAME=youremail@veersatech.com
 LOOPIN_PASSWORD=<your-password>
 LOOPIN_TOTP_SECRET=<your-base32-totp-secret>
+LOOPIN_RETRIES=2
 ```
 
 You can also store the password in encrypted form instead of plain text:
@@ -114,6 +115,8 @@ LOOPIN_PASSWORD_KEY=<base64-32-byte-key>
 If both `LOOPIN_PASSWORD` and `LOOPIN_PASSWORD_ENCRYPTED` are present, the plain-text value is used first for backward compatibility.
 
 > For real security, keep `LOOPIN_PASSWORD_KEY` outside the same shared `.env` file whenever possible, such as a machine-level environment variable or CI secret.
+
+`LOOPIN_RETRIES=2` means Playwright will retry a failed test 2 more times, so the total attempts become 3.
 
 > **TOTP Secret**: The base32-encoded secret from your Microsoft Authenticator setup. If you only have a QR code, decode it to extract the secret parameter.
 

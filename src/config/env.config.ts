@@ -23,6 +23,20 @@ function getRequiredNumberEnv(name: string): number {
   return value;
 }
 
+function getNumberEnv(name: string, defaultValue: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) {
+    return defaultValue;
+  }
+
+  const value = Number.parseInt(raw, 10);
+  if (Number.isNaN(value) || value < 0) {
+    throw new Error(`[ENV] ${name} must be a valid non-negative number`);
+  }
+
+  return value;
+}
+
 function getBooleanEnv(name: string, defaultValue = false): boolean {
   const raw = process.env[name]?.trim().toLowerCase();
   if (!raw) {
@@ -68,6 +82,7 @@ export const ENV = {
   TOTP_SECRET: getRequiredEnv("LOOPIN_TOTP_SECRET"),
   STORAGE_STATE_PATH: path.resolve(__dirname, "../../.auth/storage-state.json"),
   TIMEOUT: getRequiredNumberEnv("LOOPIN_TIMEOUT"),
+  RETRIES: getNumberEnv("LOOPIN_RETRIES", process.env.CI ? 2 : 1),
   FORCE_FRESH_LOGIN: getBooleanEnv("LOOPIN_FORCE_FRESH_LOGIN", false),
 
   /** Persistent Edge profile directory for Conditional Access compliance */
