@@ -10,7 +10,7 @@ export default defineConfig({
   reporter: [
     ["html", { open: "never", outputFolder: "playwright-report" }],
     ["list", { printSteps: true }],
-    ["./src/reporters/manager-dashboard.reporter.ts"],
+    ["./src/reporters/custom-dashboard.reporter.ts"],
   ],
 
   globalSetup: "./src/config/global-setup.ts",

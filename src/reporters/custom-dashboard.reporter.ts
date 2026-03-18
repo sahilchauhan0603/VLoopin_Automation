@@ -38,7 +38,7 @@ type FileSummary = {
 };
 
 class ManagerDashboardReporter implements Reporter {
-  private readonly outputDir = path.resolve(process.cwd(), "manager-report");
+  private readonly outputDir = path.resolve(process.cwd(), "custom-report");
   private readonly reportPath = path.resolve(this.outputDir, "index.html");
   private readonly results = new Map<string, TestRecord>();
   private runStartTime = "";
@@ -76,7 +76,7 @@ class ManagerDashboardReporter implements Reporter {
       "utf8"
     );
     console.log(
-      `[Manager Report] Custom dashboard generated at ${this.reportPath}`
+      `[Custom Report] Dashboard generated at ${this.reportPath}`
     );
   }
 
@@ -135,7 +135,7 @@ class ManagerDashboardReporter implements Reporter {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Loopin Automation Manager Dashboard</title>
+  <title>Loopin Automation Custom Dashboard</title>
   <style>
     :root {
       --bg: #f3efe8;
@@ -716,7 +716,7 @@ class ManagerDashboardReporter implements Reporter {
         </table>
       </div>
       <div class="footer">
-        Custom manager report: <a class="link" href="./index.html">manager-report/index.html</a>
+        Custom report: <a class="link" href="./index.html">custom-report/index.html</a>
       </div>
     </section>
   </div>
