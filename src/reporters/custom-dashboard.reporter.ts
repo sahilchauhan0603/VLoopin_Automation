@@ -13,6 +13,8 @@ type AttemptRecord = {
   status: TestResult["status"];
   duration: number;
   retry: number;
+  workerIndex: number;
+  parallelIndex: number;
   errorMessages: string[];
 };
 
@@ -37,6 +39,23 @@ type FileSummary = {
   duration: number;
 };
 
+type WorkerSummary = {
+  parallelIndex: number;
+  total: number;
+  passed: number;
+  failed: number;
+  flaky: number;
+  skipped: number;
+  duration: number;
+  tests: Array<{
+    title: string;
+    file: string;
+    finalStatus: "passed" | "failed" | "flaky" | "skipped";
+    duration: number;
+    attempts: number;
+  }>;
+};
+
 class ManagerDashboardReporter implements Reporter {
   private readonly outputDir = path.resolve(process.cwd(), "custom-report");
   private readonly reportPath = path.resolve(this.outputDir, "index.html");
@@ -47,9 +66,24 @@ class ManagerDashboardReporter implements Reporter {
     this.runStartTime = new Date().toISOString();
   }
 
+  onTestBegin(test: TestCase, result: TestResult): void {
+    console.log(
+      `[Worker ${result.parallelIndex + 1}] START ${test.title} (${this.normalizeFilePath(
+        test.location.file
+      )}:${test.location.line})`
+    );
+  }
+
   onTestEnd(test: TestCase, result: TestResult): void {
     const testId = this.getTestId(test);
     const existing = this.results.get(testId);
+    const attempt = this.toAttemptRecord(result);
+
+    console.log(
+      `[Worker ${result.parallelIndex + 1}] ${String(result.status).toUpperCase()} ${test.title} (${(
+        result.duration / 1000
+      ).toFixed(1)}s)`
+    );
 
     if (!existing) {
       this.results.set(testId, {
@@ -60,12 +94,12 @@ class ManagerDashboardReporter implements Reporter {
         line: test.location.line,
         projectName: test.parent.project()?.name ?? "default",
         tags: [...test.tags],
-        attempts: [this.toAttemptRecord(result)],
+        attempts: [attempt],
       });
       return;
     }
 
-    existing.attempts.push(this.toAttemptRecord(result));
+    existing.attempts.push(attempt);
   }
 
   onEnd(result: FullResult): void {
@@ -85,6 +119,8 @@ class ManagerDashboardReporter implements Reporter {
       status: result.status,
       duration: result.duration,
       retry: result.retry,
+      workerIndex: result.workerIndex,
+      parallelIndex: result.parallelIndex,
       errorMessages: result.errors
         .map((error) => error.message || error.value || "")
         .filter(Boolean),
@@ -117,6 +153,8 @@ class ManagerDashboardReporter implements Reporter {
     const fileBars = this.renderFileBars(fileSummaries);
     const slowBars = this.renderSlowBars(slowestTests);
     const issueRows = this.renderIssueRows(problematicTests);
+    const workerSummaries = this.getWorkerSummaries(records);
+    const workerCards = this.renderWorkerCards(workerSummaries);
     const pieStyle = this.getPieStyle(summary);
     const attentionCount = summary.failed + summary.flaky;
     const executiveHeading =
@@ -340,6 +378,13 @@ class ManagerDashboardReporter implements Reporter {
       margin-top: 20px;
     }
 
+    .worker-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
     .pie-wrap {
       display: grid;
       grid-template-columns: auto 1fr;
@@ -422,6 +467,37 @@ class ManagerDashboardReporter implements Reporter {
     .bar-row {
       display: grid;
       gap: 6px;
+    }
+
+    .file-stat-row {
+      position: relative;
+      padding-bottom: 18px;
+      margin-bottom: 18px;
+    }
+
+    .file-stat-row::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        rgba(23, 32, 51, 0),
+        rgba(23, 32, 51, 0.12) 14%,
+        rgba(23, 32, 51, 0.12) 86%,
+        rgba(23, 32, 51, 0)
+      );
+    }
+
+    .file-stat-row:last-child {
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }
+
+    .file-stat-row:last-child::after {
+      display: none;
     }
 
     .bar-meta {
@@ -514,6 +590,59 @@ class ManagerDashboardReporter implements Reporter {
     .table-wrap {
       overflow: auto;
       margin-top: 22px;
+    }
+
+    .worker-card {
+      display: grid;
+      gap: 14px;
+    }
+
+    .worker-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .worker-name {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .worker-meta {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .worker-tests {
+      display: grid;
+      gap: 10px;
+    }
+
+    .worker-test {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(23, 32, 51, 0.08);
+    }
+
+    .worker-test-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .worker-test-title {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .worker-test-file {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 5px;
     }
 
     table {
@@ -695,6 +824,10 @@ class ManagerDashboardReporter implements Reporter {
       </div>
     </section>
 
+    <section class="worker-grid">
+      ${workerCards}
+    </section>
+
     <section class="panel" style="margin-top: 20px;">
       <h2 class="panel-title">Attention Items</h2>
       <p class="panel-subtitle">Failures and flaky cases that deserve immediate review</p>
@@ -803,7 +936,7 @@ class ManagerDashboardReporter implements Reporter {
         const skippedWidth = this.toPercent(summary.skipped, summary.total);
         const healthyPercent = this.toPercent(summary.passed + summary.flaky, summary.total);
 
-        return `<div class="bar-row">
+        return `<div class="bar-row file-stat-row">
           <div class="bar-meta">
             <span>${this.escapeHtml(summary.file)}</span>
             <strong>${healthyPercent.toFixed(1)}% healthy outcome</strong>
@@ -838,7 +971,7 @@ class ManagerDashboardReporter implements Reporter {
         const duration = this.getTotalDuration(record);
         const width = slowestDuration === 0 ? 0 : (duration / slowestDuration) * 100;
         const finalStatus = this.getFinalStatus(record);
-        return `<div class="bar-row">
+        return `<div class="bar-row file-stat-row">
           <div class="bar-meta">
             <span>${this.escapeHtml(record.title)}</span>
             <strong>${(duration / 1000).toFixed(1)}s</strong>
@@ -871,10 +1004,100 @@ class ManagerDashboardReporter implements Reporter {
           <td><span class="pill ${this.getPillClass(finalStatus)}">${this.escapeHtml(finalStatus)}</span></td>
           <td>${this.escapeHtml(record.title)}<div class="muted">${this.escapeHtml(record.suiteName)}</div></td>
           <td>${this.escapeHtml(record.file)}:${record.line}</td>
-          <td>${record.attempts.length}</td>
+          <td>Worker ${this.getParallelSlot(record)} · ${record.attempts.length} attempt(s)</td>
           <td>${(this.getTotalDuration(record) / 1000).toFixed(1)}s</td>
           <td>${this.escapeHtml(issueSummary)}</td>
         </tr>`;
+      })
+      .join("");
+  }
+
+  private getWorkerSummaries(records: TestRecord[]): WorkerSummary[] {
+    const map = new Map<number, WorkerSummary>();
+
+    for (const record of records) {
+      const parallelIndex = this.getParallelIndex(record);
+      const finalStatus = this.getFinalStatus(record);
+      const duration = this.getTotalDuration(record);
+      const summary =
+        map.get(parallelIndex) ??
+        {
+          parallelIndex,
+          total: 0,
+          passed: 0,
+          failed: 0,
+          flaky: 0,
+          skipped: 0,
+          duration: 0,
+          tests: [],
+        };
+
+      summary.total += 1;
+      summary.duration += duration;
+
+      if (finalStatus === "passed") {
+        summary.passed += 1;
+      } else if (finalStatus === "failed") {
+        summary.failed += 1;
+      } else if (finalStatus === "flaky") {
+        summary.flaky += 1;
+      } else {
+        summary.skipped += 1;
+      }
+
+      summary.tests.push({
+        title: record.title,
+        file: record.file,
+        finalStatus,
+        duration,
+        attempts: record.attempts.length,
+      });
+
+      map.set(parallelIndex, summary);
+    }
+
+    return [...map.values()]
+      .sort((left, right) => left.parallelIndex - right.parallelIndex)
+      .map((summary) => ({
+        ...summary,
+        tests: summary.tests.sort((left, right) => right.duration - left.duration),
+      }));
+  }
+
+  private renderWorkerCards(summaries: WorkerSummary[]): string {
+    if (summaries.length === 0) {
+      return `<section class="panel"><h2 class="panel-title">Worker-wise Execution</h2><p class="panel-subtitle">No worker execution data was captured for this run.</p></section>`;
+    }
+
+    return summaries
+      .map((summary) => {
+        const testItems = summary.tests
+          .map(
+            (test) => `<div class="worker-test">
+              <div class="worker-test-top">
+                <span class="worker-test-title">${this.escapeHtml(test.title)}</span>
+                <span class="pill ${this.getPillClass(test.finalStatus)}">${this.escapeHtml(test.finalStatus)}</span>
+              </div>
+              <div class="worker-test-file">${this.escapeHtml(test.file)} · ${(test.duration / 1000).toFixed(1)}s · ${test.attempts} attempt(s)</div>
+            </div>`
+          )
+          .join("");
+
+        return `<section class="panel worker-card">
+          <div class="worker-header">
+            <div class="worker-name">Worker ${summary.parallelIndex + 1}</div>
+            <div class="worker-meta">${summary.total} tests · ${(summary.duration / 1000).toFixed(1)}s total</div>
+          </div>
+          <div class="stat-chips">
+            ${this.renderStatChip("Passed", summary.passed, "var(--pass)")}
+            ${this.renderStatChip("Failed", summary.failed, "var(--fail)")}
+            ${this.renderStatChip("Flaky", summary.flaky, "var(--flaky)")}
+            ${this.renderStatChip("Skipped", summary.skipped, "var(--skip)")}
+          </div>
+          <div class="worker-tests">
+            ${testItems}
+          </div>
+        </section>`;
       })
       .join("");
   }
@@ -978,6 +1201,20 @@ class ManagerDashboardReporter implements Reporter {
 
   private getTotalDuration(record: TestRecord): number {
     return record.attempts.reduce((sum, attempt) => sum + attempt.duration, 0);
+  }
+
+  private getWorkerIndex(record: TestRecord): number {
+    const lastAttempt = record.attempts[record.attempts.length - 1];
+    return lastAttempt?.workerIndex ?? 0;
+  }
+
+  private getParallelIndex(record: TestRecord): number {
+    const lastAttempt = record.attempts[record.attempts.length - 1];
+    return lastAttempt?.parallelIndex ?? 0;
+  }
+
+  private getParallelSlot(record: TestRecord): number {
+    return this.getParallelIndex(record) + 1;
   }
 
   private getSuiteName(test: TestCase): string {

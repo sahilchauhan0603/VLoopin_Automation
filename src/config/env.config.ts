@@ -83,6 +83,7 @@ export const ENV = {
   STORAGE_STATE_PATH: path.resolve(__dirname, "../../.auth/storage-state.json"),
   TIMEOUT: getRequiredNumberEnv("LOOPIN_TIMEOUT"),
   RETRIES: getNumberEnv("LOOPIN_RETRIES", process.env.CI ? 2 : 1),
+  WORKERS: getNumberEnv("LOOPIN_WORKERS", 1),
   FORCE_FRESH_LOGIN: getBooleanEnv("LOOPIN_FORCE_FRESH_LOGIN", false),
 
   /** Persistent Edge profile directory for Conditional Access compliance */
