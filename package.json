@@ -13,6 +13,7 @@
     "test:requisition": "npx playwright test tests/create-requisition.spec.ts",
     "test:dashboard": "npx playwright test tests/employee-dashboard.spec.ts",
     "report": "npx playwright show-report playwright-report",
+    "report:manager": "node -e \"require('fs').existsSync('manager-report/index.html') ? console.log('Open manager-report/index.html in your browser') : console.log('Run tests first to generate manager-report/index.html')\"",
     "install:browsers": "npx playwright install --with-deps chromium msedge"
   },
   "devDependencies": {
