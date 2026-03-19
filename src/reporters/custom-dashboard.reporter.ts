@@ -595,6 +595,7 @@ class ManagerDashboardReporter implements Reporter {
     .worker-card {
       display: grid;
       gap: 14px;
+      align-content: start;
     }
 
     .worker-header {
@@ -617,6 +618,7 @@ class ManagerDashboardReporter implements Reporter {
     .worker-tests {
       display: grid;
       gap: 10px;
+      align-content: start;
     }
 
     .worker-test {
