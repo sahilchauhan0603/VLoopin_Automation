@@ -16,6 +16,7 @@ type AttemptRecord = {
   workerIndex: number;
   parallelIndex: number;
   errorMessages: string[];
+  screenshotPath?: string;
 };
 
 type TestRecord = {
@@ -59,6 +60,7 @@ type WorkerSummary = {
 class ManagerDashboardReporter implements Reporter {
   private readonly outputDir = path.resolve(process.cwd(), "custom-report");
   private readonly reportPath = path.resolve(this.outputDir, "index.html");
+  private readonly assetsDir = path.resolve(this.outputDir, "assets");
   private readonly results = new Map<string, TestRecord>();
   private runStartTime = "";
 
@@ -104,6 +106,7 @@ class ManagerDashboardReporter implements Reporter {
 
   onEnd(result: FullResult): void {
     fs.mkdirSync(this.outputDir, { recursive: true });
+    fs.mkdirSync(this.assetsDir, { recursive: true });
     fs.writeFileSync(
       this.reportPath,
       this.buildHtml(result),
@@ -124,7 +127,62 @@ class ManagerDashboardReporter implements Reporter {
       errorMessages: result.errors
         .map((error) => error.message || error.value || "")
         .filter(Boolean),
+      screenshotPath: this.persistIssueScreenshot(result),
     };
+  }
+
+  private persistIssueScreenshot(result: TestResult): string | undefined {
+    const screenshotAttachment = result.attachments.find((attachment) => {
+      const lowerName = attachment.name.toLowerCase();
+      return (
+        attachment.contentType.startsWith("image/") &&
+        lowerName.includes("screenshot")
+      );
+    });
+
+    if (!screenshotAttachment) {
+      return undefined;
+    }
+
+    fs.mkdirSync(this.assetsDir, { recursive: true });
+
+    const extension = this.getAttachmentExtension(screenshotAttachment);
+    const fileName = `issue-${Date.now()}-${result.parallelIndex}-${result.retry}${extension}`;
+    const targetPath = path.join(this.assetsDir, fileName);
+
+    if (screenshotAttachment.path && fs.existsSync(screenshotAttachment.path)) {
+      fs.copyFileSync(screenshotAttachment.path, targetPath);
+      return `assets/${fileName}`;
+    }
+
+    if (screenshotAttachment.body) {
+      fs.writeFileSync(targetPath, screenshotAttachment.body);
+      return `assets/${fileName}`;
+    }
+
+    return undefined;
+  }
+
+  private getAttachmentExtension(attachment: {
+    path?: string;
+    contentType: string;
+  }): string {
+    if (attachment.path) {
+      const extension = path.extname(attachment.path);
+      if (extension) {
+        return extension;
+      }
+    }
+
+    if (attachment.contentType === "image/jpeg") {
+      return ".jpg";
+    }
+
+    if (attachment.contentType === "image/webp") {
+      return ".webp";
+    }
+
+    return ".png";
   }
 
   private buildHtml(result: FullResult): string {
@@ -647,10 +705,37 @@ class ManagerDashboardReporter implements Reporter {
       margin-top: 5px;
     }
 
+    .issue-screenshot {
+      width: 160px;
+      min-width: 160px;
+    }
+
+    .issue-thumb-link {
+      display: inline-block;
+      text-decoration: none;
+    }
+
+    .issue-thumb {
+      width: 148px;
+      height: 92px;
+      object-fit: cover;
+      border-radius: 14px;
+      border: 1px solid rgba(23, 32, 51, 0.1);
+      box-shadow: 0 10px 24px rgba(23, 32, 51, 0.08);
+      background: rgba(148, 163, 184, 0.15);
+    }
+
+    .issue-thumb-caption {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 820px;
+      min-width: 1120px;
     }
 
     th, td {
@@ -843,6 +928,7 @@ class ManagerDashboardReporter implements Reporter {
               <th>Attempts</th>
               <th>Duration</th>
               <th>Issue Snapshot</th>
+              <th>Issue Screenshot</th>
             </tr>
           </thead>
           <tbody>
@@ -993,7 +1079,7 @@ class ManagerDashboardReporter implements Reporter {
 
   private renderIssueRows(records: TestRecord[]): string {
     if (records.length === 0) {
-      return `<tr><td colspan="6" class="muted">No failures or flaky tests in this run.</td></tr>`;
+      return `<tr><td colspan="7" class="muted">No failures or flaky tests in this run.</td></tr>`;
     }
 
     return records
@@ -1001,6 +1087,7 @@ class ManagerDashboardReporter implements Reporter {
       .map((record) => {
         const finalStatus = this.getFinalStatus(record);
         const issueSummary = this.getIssueSummary(record);
+        const issueScreenshot = this.renderIssueScreenshot(record);
 
         return `<tr>
           <td><span class="pill ${this.getPillClass(finalStatus)}">${this.escapeHtml(finalStatus)}</span></td>
@@ -1009,9 +1096,22 @@ class ManagerDashboardReporter implements Reporter {
           <td>Worker ${this.getParallelSlot(record)} · ${record.attempts.length} attempt(s)</td>
           <td>${(this.getTotalDuration(record) / 1000).toFixed(1)}s</td>
           <td>${this.escapeHtml(issueSummary)}</td>
+          <td class="issue-screenshot">${issueScreenshot}</td>
         </tr>`;
       })
       .join("");
+  }
+
+  private renderIssueScreenshot(record: TestRecord): string {
+    const screenshotPath = this.getLatestIssueScreenshot(record);
+    if (!screenshotPath) {
+      return `<span class="muted">No screenshot captured</span>`;
+    }
+
+    return `<a class="issue-thumb-link" href="${this.escapeHtml(screenshotPath)}" target="_blank" rel="noopener noreferrer">
+      <img class="issue-thumb" src="${this.escapeHtml(screenshotPath)}" alt="Issue screenshot for ${this.escapeHtml(record.title)}" />
+      <div class="issue-thumb-caption">Open screenshot</div>
+    </a>`;
   }
 
   private getWorkerSummaries(records: TestRecord[]): WorkerSummary[] {
@@ -1203,6 +1303,12 @@ class ManagerDashboardReporter implements Reporter {
 
   private getTotalDuration(record: TestRecord): number {
     return record.attempts.reduce((sum, attempt) => sum + attempt.duration, 0);
+  }
+
+  private getLatestIssueScreenshot(record: TestRecord): string | undefined {
+    return [...record.attempts]
+      .reverse()
+      .find((attempt) => attempt.screenshotPath)?.screenshotPath;
   }
 
   private getWorkerIndex(record: TestRecord): number {
