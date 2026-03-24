@@ -3,7 +3,7 @@ import { ENV } from "./src/config/env.config";
 
 export default defineConfig({
   testDir: "./tests",
-  fullyParallel: false,
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: ENV.RETRIES,
   workers: ENV.WORKERS,
