@@ -1,72 +1,74 @@
-# Loopin – Playwright UI Automation Framework
+# Loopin Automation
 
-**Playwright + TypeScript** automation framework for the Loopin application using **Page Object Model (POM)** and **Data-driven** patterns.
+Playwright + TypeScript UI automation framework for the Loopin application. The project follows a Page Object Model approach, keeps test data separate from test logic, and uses a reusable authenticated session to speed up execution.
 
-## Architecture
+## What This Project Covers
 
-```
+- Login page validation and Microsoft sign-in flow
+- Employee dashboard coverage
+- Requisition creation and draft scenarios
+- Referral form positive, negative, and edge-case validation
+- HTML reporting plus a custom dashboard report
+
+## Tech Stack
+
+- Playwright
+- TypeScript
+- Microsoft Edge / Chromium channel
+- `dotenv` for configuration
+- `speakeasy` for TOTP-based MFA
+
+## Project Structure
+
+```text
 Automation/
-├── playwright.config.ts            # Playwright config (single project, globalSetup)
-├── tsconfig.json                   # TypeScript configuration
-├── package.json                    # Dependencies and npm scripts
-├── .env.example                    # Environment variable template
-│
-├── src/
-│   ├── config/
-│   │   ├── env.config.ts           # Reads .env → typed ENV singleton
-│   │   └── global-setup.ts         # One-time login via persistent Edge
-│   │
-│   ├── pages/                      # Page Object Model (POM)
-│   │   ├── base.page.ts            # Abstract base with shared helpers
-│   │   ├── login.page.ts           # Login – MSAL popup + Speakeasy TOTP
-│   │   ├── requisition-list.page.ts
-│   │   ├── requisition-form.page.ts
-│   │   └── index.ts                # Barrel exports
-│   │
-│   ├── fixtures/
-│   │   └── test.fixture.ts         # Custom fixtures: page objects via DI
-│   │
-│   ├── utils/
-│   │   └── totp.helper.ts          # Speakeasy TOTP generation
-│   │
-│   └── data/                       # Test data (data-driven approach)
-│       ├── login.data.json
-│       └── requisition.data.json
-│
-└── tests/                          # Test specifications
-    ├── login.spec.ts
-    ├── employee-dashboard.spec.ts
-    └── create-requisition.spec.ts
+|-- playwright.config.ts
+|-- package.json
+|-- .env.example
+|-- scripts/
+|   `-- encrypt-password.js
+|-- src/
+|   |-- config/
+|   |   |-- env.config.ts
+|   |   `-- global-setup.ts
+|   |-- data/
+|   |   |-- login.data.json
+|   |   |-- requisition.data.json
+|   |   |-- referral.data.json
+|   |   `-- test-resume.doc
+|   |-- fixtures/
+|   |   |-- auth.setup.ts
+|   |   `-- test.fixture.ts
+|   |-- page-objects/
+|   |   |-- 00-shared/
+|   |   |-- 01-login/
+|   |   |-- 02-requisitions/
+|   |   |-- 03-employee-dashboard/
+|   |   `-- 04-referrals/
+|   |-- reporters/
+|   |   `-- custom-dashboard.reporter.ts
+|   `-- utils/
+|       |-- password-crypto.ts
+|       `-- totp.helper.ts
+|-- tests/
+|   |-- 01-login.spec.ts
+|   |-- 02-employee-dashboard.spec.ts
+|   |-- 03-requisition.spec.ts
+|   `-- 04-referrals.spec.ts
+`-- README.md
 ```
 
-### Framework Patterns
+## How Authentication Works
 
-| Pattern | Location |
-|---------|----------|
-| **Page Object Model** | `src/pages/` – each page maps to a class extending `BasePage` |
-| **Data-driven** | `src/data/*.json` – test data separated from logic |
-| **Fixture-based DI** | `src/fixtures/test.fixture.ts` – page objects injected into tests |
-| **Global auth setup** | `src/config/global-setup.ts` – login once, all tests reuse the session |
+The framework uses `globalSetup` to create and reuse authenticated state.
 
-### Authentication Flow
+1. Before the test run, Playwright checks for `.auth/storage-state.json`.
+2. If the session is still fresh, the login step is skipped.
+3. Otherwise, a persistent Microsoft Edge context is launched.
+4. The framework completes Microsoft login and TOTP-based MFA.
+5. The authenticated session is saved and reused by the tests.
 
-1. `globalSetup` checks if a fresh `storageState` exists – skips login if so
-2. Otherwise, launches a persistent **Microsoft Edge** context (Conditional Access compliance)
-3. Navigates to `/login` → click **Sign in with Microsoft**
-4. MSAL popup: email → password → Speakeasy TOTP for MFA
-5. Handles "Stay signed in?" and Edge profile prompts
-6. Saves `storageState` to `.auth/storage-state.json`
-7. All tests reuse this session – no re-login needed
-
-### Force fresh login every run
-
-Set this in `.env`:
-
-```
-LOOPIN_FORCE_FRESH_LOGIN=true
-```
-
-When enabled (set to true), global setup clears saved storage state and Edge profile before starting, so each run performs a brand-new login flow.
+Set `LOOPIN_FORCE_FRESH_LOGIN=true` if you want a brand-new login on every run.
 
 ## Setup
 
@@ -76,146 +78,121 @@ When enabled (set to true), global setup clears saved storage state and Edge pro
 npm install
 ```
 
-### 2. Install browsers
+### 2. Install Playwright browsers
 
 ```bash
 npm run install:browsers
 ```
 
-### 3. Configure environment
+### 3. Configure environment variables
+
+Create `.env` from the sample file and update it with valid values:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` with your credentials:
+Required configuration:
 
-```
+```env
 LOOPIN_BASE_URL=https://vhiredev.z22.web.core.windows.net
-LOOPIN_USERNAME=youremail@veersatech.com
-LOOPIN_PASSWORD=<your-password>
-LOOPIN_TOTP_SECRET=<your-base32-totp-secret>
+LOOPIN_USERNAME=your.name@company.com
+LOOPIN_PASSWORD=
+LOOPIN_TOTP_SECRET=your-base32-totp-secret
+LOOPIN_TIMEOUT=60000
 LOOPIN_RETRIES=2
 LOOPIN_WORKERS=2
+LOOPIN_FORCE_FRESH_LOGIN=false
 ```
 
-You can also store the password in encrypted form instead of plain text:
+### Optional: use encrypted password
+
+Instead of storing `LOOPIN_PASSWORD` in plain text, generate an encrypted value:
 
 ```bash
 npm run encrypt:password -- --generate-key "your-password"
 ```
 
-Then place the output in your environment:
+Then place the generated values in `.env`:
 
-```
-LOOPIN_USERNAME=sahil.chauhan@veersatech.com
+```env
 LOOPIN_PASSWORD_ENCRYPTED=encv1:<iv>:<tag>:<ciphertext>
-LOOPIN_PASSWORD_KEY=<base64-32-byte-key>
+LOOPIN_PASSWORD_KEY=<base64-key>
 ```
 
-If both `LOOPIN_PASSWORD` and `LOOPIN_PASSWORD_ENCRYPTED` are present, the plain-text value is used first for backward compatibility.
-
-> For real security, keep `LOOPIN_PASSWORD_KEY` outside the same shared `.env` file whenever possible, such as a machine-level environment variable or CI secret.
-
-`LOOPIN_RETRIES=2` means Playwright will retry a failed test 2 more times, so the total attempts become 3.
-
-`LOOPIN_WORKERS=2` means Playwright will run 2 workers in parallel. Increase or decrease this value in `.env` whenever you want to tune execution speed.
-
-> **TOTP Secret**: The base32-encoded secret from your Microsoft Authenticator setup. If you only have a QR code, decode it to extract the secret parameter.
+If both `LOOPIN_PASSWORD` and `LOOPIN_PASSWORD_ENCRYPTED` are present, the plain-text password is used first.
 
 ## Running Tests
 
+Run the full suite:
+
 ```bash
-# Run all tests
 npm test
+```
 
-# Playwright UI mode (interactive)
+Useful run modes:
+
+```bash
 npm run test:ui
-
-# Run with visible browser
 npm run test:headed
-
-# Debug mode (step-by-step inspector)
 npm run test:debug
+```
 
-# Run specific suites
-npm run test:login
-npm run test:requisition
-npm run test:dashboard
+Run a specific spec file:
 
-# View HTML report
+```bash
+npx playwright test tests/04-referrals.spec.ts
+```
+
+Run a single test by title:
+
+```bash
+npx playwright test tests/04-referrals.spec.ts --grep "TC_REFERRALS_03: Create referral successfully"
+```
+
+Run a single test by line number:
+
+```bash
+npx playwright test tests/04-referrals.spec.ts:37 --headed
+```
+
+## Reports
+
+After execution, reports are generated in:
+
+- `playwright-report/` for the standard Playwright HTML report
+- `custom-report/` for the custom dashboard report
+- `test-results/` for run artifacts such as traces, screenshots, and videos
+
+Open the default Playwright report with:
+
+```bash
 npm run report
 ```
 
-### Run a particular test case in headed mode
+To check whether the custom report exists:
 
 ```bash
-# Run a single test file in headed mode
-npx playwright test tests/04-referrals.spec.ts --headed
-
-# Run one specific test in that file by test title
-npx playwright test tests/04-referrals.spec.ts --headed --grep "TC_REFERRALS_02: Create referral successfully"
-
-# Run one specific test by line number in headed mode
-npx playwright test tests/04-referrals.spec.ts:21 --headed
+npm run report:custom
 ```
 
-If your test title includes spaces or special characters, keep it inside quotes with `--grep`.
+## Framework Conventions
 
-## Adding New Tests
+- Page objects live under `src/page-objects/`
+- Shared fixtures are defined in `src/fixtures/test.fixture.ts`
+- Test data is stored in `src/data/*.json`
+- Environment parsing is centralized in `src/config/env.config.ts`
+- Reporting is configured in `playwright.config.ts`
 
-### 1. Create a page object
+## Adding New Coverage
 
-Create `src/pages/my-feature.page.ts` extending `BasePage`:
+1. Add or update a page object in `src/page-objects/`
+2. Register it in `src/fixtures/test.fixture.ts` if tests need fixture access
+3. Keep reusable data in `src/data/`
+4. Add a new `.spec.ts` file under `tests/`
 
-```typescript
-import { expect } from "@playwright/test";
-import { BasePage } from "./base.page";
+## Notes
 
-export class MyFeaturePage extends BasePage {
-  private readonly heading = this.page.getByRole("heading", { name: "My Feature" });
-
-  async goto(): Promise<void> {
-    await this.navigateTo("/my-feature");
-  }
-
-  async verifyLoaded(): Promise<void> {
-    await expect(this.heading).toBeVisible();
-  }
-}
-```
-
-### 2. Export from barrel
-
-Add to `src/pages/index.ts`:
-
-```typescript
-export { MyFeaturePage } from "./my-feature.page";
-```
-
-### 3. Register fixture
-
-Add to `src/fixtures/test.fixture.ts`:
-
-```typescript
-myFeaturePage: async ({ page }, use) => {
-  await use(new MyFeaturePage(page));
-},
-```
-
-### 4. Write tests
-
-```typescript
-import { test, expect } from "../src/fixtures/test.fixture";
-
-test.describe("My Feature", () => {
-  test("loads correctly", async ({ myFeaturePage }) => {
-    await myFeaturePage.goto();
-    await myFeaturePage.verifyLoaded();
-  });
-});
-```
-
-### Adding data-driven tests
-
-Add a dataset to the relevant JSON in `src/data/`. Data-driven suites in `tests/` automatically pick up complete datasets.
+- The suite is designed around Microsoft Edge because the authentication flow uses a persistent Edge profile.
+- A fresh login is automatically triggered when the saved session expires.
+- Referral tests use the sample resume file in `src/data/test-resume.doc`.
