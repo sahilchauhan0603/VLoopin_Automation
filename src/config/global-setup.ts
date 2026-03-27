@@ -52,7 +52,7 @@ async function globalSetup() {
     ENV.EDGE_PROFILE_DIR,
     {
       channel: "msedge",
-      headless: false,
+      headless: true,
       viewport: { width: 1440, height: 900 },
       args: ["--disable-blink-features=AutomationControlled"],
     }

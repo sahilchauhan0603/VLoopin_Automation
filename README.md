@@ -176,6 +176,14 @@ To check whether the custom report exists:
 npm run report:custom
 ```
 
+## Cleaning Test Artifacts
+
+Start fresh by deleting all generated artifacts in one command:
+
+```bash
+Remove-Item -Path "test-results", "playwright-report", "custom-report" -Recurse -Force -ErrorAction SilentlyContinue
+```
+
 ## Framework Conventions
 
 - Page objects live under `src/page-objects/`
