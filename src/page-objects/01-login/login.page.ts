@@ -47,20 +47,6 @@ export class LoginPage extends BasePage {
    * If still on /login, performs the full MSAL popup + TOTP flow.
    */
   async loginWithMicrosoft(credentials: LoginCredentials): Promise<void> {
-    if (ENV.FORCE_FRESH_LOGIN) {
-      console.log(
-        "[Login] LOOPIN_FORCE_FRESH_LOGIN=true - clearing app auth state before login"
-      );
-      await this.page.context().clearCookies();
-      await this.page.goto(ENV.BASE_URL, { waitUntil: "domcontentloaded" }).catch(() => {});
-      await this.page
-        .evaluate(() => {
-          window.localStorage.clear();
-          window.sessionStorage.clear();
-        })
-        .catch(() => {});
-    }
-
     await this.goto();
 
     // If the persistent Edge profile already has SSO, the app may

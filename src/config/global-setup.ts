@@ -22,13 +22,18 @@ async function globalSetup() {
     return;
   }
 
-  if (ENV.FORCE_FRESH_LOGIN) {
-    console.log("[Global Setup] LOOPIN_FORCE_FRESH_LOGIN=true – clearing previous auth state");
+  if (ENV.NUKE_PROFILE) {
+    console.log("[Global Setup] LOOPIN_NUKE_PROFILE=true – nuking storage state + Edge profile");
     if (fs.existsSync(ENV.STORAGE_STATE_PATH)) {
       fs.rmSync(ENV.STORAGE_STATE_PATH, { force: true });
     }
     if (fs.existsSync(ENV.EDGE_PROFILE_DIR)) {
       fs.rmSync(ENV.EDGE_PROFILE_DIR, { recursive: true, force: true });
+    }
+  } else if (ENV.FORCE_FRESH_LOGIN) {
+    console.log("[Global Setup] LOOPIN_FORCE_FRESH_LOGIN=true – clearing storage state (keeping Edge profile)");
+    if (fs.existsSync(ENV.STORAGE_STATE_PATH)) {
+      fs.rmSync(ENV.STORAGE_STATE_PATH, { force: true });
     }
   }
 

@@ -85,6 +85,7 @@ export const ENV = {
   RETRIES: getNumberEnv("LOOPIN_RETRIES", process.env.CI ? 2 : 1),
   WORKERS: getNumberEnv("LOOPIN_WORKERS", 1),
   FORCE_FRESH_LOGIN: getBooleanEnv("LOOPIN_FORCE_FRESH_LOGIN", false),
+  NUKE_PROFILE: getBooleanEnv("LOOPIN_NUKE_PROFILE", false),
 
   /** Persistent Edge profile directory for Conditional Access compliance */
   EDGE_PROFILE_DIR: path.resolve(
