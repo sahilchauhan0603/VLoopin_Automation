@@ -1,6 +1,6 @@
 # Loopin Automation
 
-Playwright + TypeScript UI automation framework for the Loopin application. The project follows a Page Object Model approach, keeps test data separate from test logic, and uses a reusable authenticated session to speed up execution.
+Playwright + TypeScript UI automation framework for the Loopin application. The project follows a Page Object Model approach, keeps test data separate from test logic, and uses a reusable authenticated session to speed up execution..
 
 ## What This Project Covers
 
