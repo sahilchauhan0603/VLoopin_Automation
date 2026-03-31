@@ -56,8 +56,8 @@ pipeline {
         )
         booleanParam(
             name: 'FORCE_FRESH_LOGIN',
-            defaultValue: true,
-            description: 'Force a brand-new login (ignore cached auth state)'
+            defaultValue: false,
+            description: 'Force a brand-new login (ignore cached auth state). Edge profile is preserved.'
         )
     }
 
