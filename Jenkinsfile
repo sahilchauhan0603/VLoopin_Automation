@@ -2,8 +2,12 @@
 // Loopin Automation – Declarative Jenkins Pipeline
 // ──────────────────────────────────────────────────────────────
 //
+// Architecture:
+//   Windows Jenkins host → runs Linux Docker container for tests
+//   Reports are volume-mounted back to the host for publishing
+//
 // Features:
-//   • Docker agent (Playwright + Edge)
+//   • Docker-based test execution (Playwright + Edge)
 //   • Parameterized builds (suite, browser, workers, retries)
 //   • JUnit test trend tracking
 //   • HTML report publishing (Playwright + custom dashboard)
@@ -13,14 +17,9 @@
 // ──────────────────────────────────────────────────────────────
 
 pipeline {
-    agent {
-        docker {
-            image 'loopin-playwright:latest'
-            // If you push the image to a registry, replace with:
-            // image 'your-registry.com/loopin-playwright:latest'
-            args '--ipc=host'  // Required for Chromium sandboxing
-        }
-    }
+    // Run on the Windows Jenkins node directly.
+    // Docker is invoked manually in the test stage.
+    agent any
 
     // ── Triggers ────────────────────────────────────────────
     triggers {
@@ -62,16 +61,6 @@ pipeline {
         )
     }
 
-    // ── Environment ─────────────────────────────────────────
-    environment {
-        CI                      = 'true'
-        LOOPIN_BASE_URL         = "${params.BASE_URL}"
-        LOOPIN_WORKERS          = "${params.WORKERS}"
-        LOOPIN_RETRIES          = "${params.RETRIES}"
-        LOOPIN_TIMEOUT          = '120000'
-        LOOPIN_FORCE_FRESH_LOGIN = "${params.FORCE_FRESH_LOGIN}"
-    }
-
     // ── Options ─────────────────────────────────────────────
     options {
         timeout(time: 60, unit: 'MINUTES')
@@ -86,47 +75,63 @@ pipeline {
 
     stages {
         // ────────────────────────────────────────────────────
-        // Stage 1: Install dependencies
+        // Stage 1: Prepare output directories on Windows host
         // ────────────────────────────────────────────────────
-        stage('Install Dependencies') {
+        stage('Prepare Workspace') {
             steps {
-                echo '📦 Installing Node.js dependencies...'
-                sh 'npm ci'
+                echo '📁 Creating output directories...'
+                bat 'if not exist "test-results" mkdir "test-results"'
+                bat 'if not exist "playwright-report" mkdir "playwright-report"'
+                bat 'if not exist "custom-report" mkdir "custom-report"'
             }
         }
 
         // ────────────────────────────────────────────────────
-        // Stage 2: Install browsers
+        // Stage 2: Run tests inside Docker
         // ────────────────────────────────────────────────────
-        stage('Install Browsers') {
-            steps {
-                echo '🌐 Installing Playwright browsers...'
-                sh 'npx playwright install --with-deps chromium'
-            }
-        }
-
-        // ────────────────────────────────────────────────────
-        // Stage 3: Run tests
-        // ────────────────────────────────────────────────────
-        stage('Run Tests') {
+        stage('Run Tests in Docker') {
             steps {
                 // Inject secrets from Jenkins credentials store
                 withCredentials([
                     string(credentialsId: 'LOOPIN_USERNAME',           variable: 'LOOPIN_USERNAME'),
-                    string(credentialsId: 'LOOPIN_PASSWORD',           variable: 'LOOPIN_PASSWORD'),
                     string(credentialsId: 'LOOPIN_PASSWORD_ENCRYPTED', variable: 'LOOPIN_PASSWORD_ENCRYPTED'),
                     string(credentialsId: 'LOOPIN_PASSWORD_KEY',       variable: 'LOOPIN_PASSWORD_KEY'),
                     string(credentialsId: 'LOOPIN_TOTP_SECRET',        variable: 'LOOPIN_TOTP_SECRET')
                 ]) {
                     script {
-                        def testCommand = getTestCommand(params.TEST_SUITE)
-                        echo "🧪 Running: ${testCommand}"
-                        // Use returnStatus so the pipeline continues to
-                        // publish reports even when tests fail
-                        def exitCode = sh(
-                            script: testCommand,
+                        def testCmd = getTestCommand(params.TEST_SUITE)
+                        // Convert Windows backslashes to forward slashes for Docker volume mounts
+                        def wsPath = env.WORKSPACE.replace('\\', '/')
+
+                        echo "🧪 Running: ${testCmd}"
+                        echo "📂 Workspace: ${wsPath}"
+
+                        // Run tests in a Linux Docker container.
+                        // Volume-mount report directories so results are
+                        // accessible on the Windows host after the container exits.
+                        // Credentials are passed via -e flags (Jenkins masks them in logs).
+                        def exitCode = bat(
+                            script: """@echo off
+docker run --rm --ipc=host ^
+  -e CI=true ^
+  -e LOOPIN_BASE_URL=${params.BASE_URL} ^
+  -e LOOPIN_USERNAME=%LOOPIN_USERNAME% ^
+  -e LOOPIN_PASSWORD_ENCRYPTED=%LOOPIN_PASSWORD_ENCRYPTED% ^
+  -e LOOPIN_PASSWORD_KEY=%LOOPIN_PASSWORD_KEY% ^
+  -e LOOPIN_TOTP_SECRET=%LOOPIN_TOTP_SECRET% ^
+  -e LOOPIN_WORKERS=${params.WORKERS} ^
+  -e LOOPIN_RETRIES=${params.RETRIES} ^
+  -e LOOPIN_TIMEOUT=120000 ^
+  -e LOOPIN_FORCE_FRESH_LOGIN=${params.FORCE_FRESH_LOGIN} ^
+  -v "${wsPath}/test-results:/app/test-results" ^
+  -v "${wsPath}/playwright-report:/app/playwright-report" ^
+  -v "${wsPath}/custom-report:/app/custom-report" ^
+  loopin-playwright:latest ^
+  ${testCmd}
+""",
                             returnStatus: true
                         )
+
                         if (exitCode != 0) {
                             echo "⚠️  Tests exited with code ${exitCode}"
                             currentBuild.result = 'UNSTABLE'
@@ -145,8 +150,7 @@ pipeline {
             // ── JUnit results (test trend graph) ────────────
             junit(
                 testResults: 'test-results/junit-results.xml',
-                allowEmptyResults: true,
-                skipPublishingChecks: true
+                allowEmptyResults: true
             )
 
             // ── Playwright HTML Report ──────────────────────
@@ -176,19 +180,12 @@ pipeline {
                 fingerprint: true
             )
 
-            // ── Cleanup workspace ───────────────────────────
-            cleanWs(
-                cleanWhenNotBuilt: false,
-                deleteDirs: true,
-                patterns: [
-                    [pattern: 'test-results/**', type: 'INCLUDE'],
-                    [pattern: 'playwright-report/**', type: 'INCLUDE'],
-                    [pattern: 'custom-report/**', type: 'INCLUDE'],
-                    [pattern: '.auth/**', type: 'INCLUDE'],
-                    [pattern: '.edge-profile/**', type: 'INCLUDE'],
-                    [pattern: 'node_modules/**', type: 'EXCLUDE']
-                ]
-            )
+            // ── Cleanup report directories ──────────────────
+            bat '''
+                if exist "test-results" rmdir /s /q "test-results"
+                if exist "playwright-report" rmdir /s /q "playwright-report"
+                if exist "custom-report" rmdir /s /q "custom-report"
+            '''
         }
 
         failure {
