@@ -204,3 +204,120 @@ Remove-Item -Path "test-results", "playwright-report", "custom-report" -Recurse 
 - The suite is designed around Microsoft Edge because the authentication flow uses a persistent Edge profile.
 - A fresh login is automatically triggered when the saved session expires.
 - Referral tests use the sample resume file in `src/data/test-resume.doc`.
+
+---
+
+## Jenkins CI/CD Integration
+
+This project includes a fully configured Jenkins pipeline for automated test execution, reporting, and notifications.
+
+### Prerequisites
+
+| Requirement | Version |
+|---|---|
+| Jenkins | 2.426+ (LTS) |
+| Docker | 20.10+ (installed on the Jenkins node) |
+| Java | 17+ (for Jenkins) |
+| Git | 2.30+ |
+
+### Quick Start
+
+```bash
+# 1. Build the Docker image (one-time)
+npm run docker:build
+
+# 2. Run tests in Docker locally (to verify)
+npm run docker:test
+```
+
+### Jenkins Plugins Required
+
+Install these from **Manage Jenkins → Plugins → Available plugins**:
+
+| Plugin | Purpose |
+|---|---|
+| **Pipeline** | Core pipeline support (often pre-installed) |
+| **Docker Pipeline** | Run pipeline stages inside Docker containers |
+| **HTML Publisher** | Publish Playwright HTML and custom dashboard reports |
+| **JUnit** | Parse test results XML for trend graphs |
+| **Email Extension** | Rich HTML email notifications on failure/recovery |
+| **Credentials** | Store secrets securely (often pre-installed) |
+| **AnsiColor** | Colorized console output |
+| **Workspace Cleanup** | Clean workspace after builds |
+| **Timestamper** | Timestamps in console output |
+
+### Setting Up Credentials
+
+Go to **Manage Jenkins → Credentials → System → Global credentials → Add Credentials**:
+
+| ID | Kind | Value |
+|---|---|---|
+| `LOOPIN_USERNAME` | Secret text | Your Microsoft login email |
+| `LOOPIN_PASSWORD` | Secret text | Your login password |
+| `LOOPIN_TOTP_SECRET` | Secret text | Your base32 TOTP secret |
+
+### Creating the Pipeline Job
+
+1. **New Item** → Enter name `Loopin-Automation` → Select **Multibranch Pipeline** → OK
+2. Under **Branch Sources** → **Add source** → **Git**
+3. Enter your repository URL
+4. Under **Build Configuration** → Mode: **by Jenkinsfile** → Script Path: `Jenkinsfile`
+5. Under **Scan Multibranch Pipeline Triggers** → check **Periodically if not otherwise run** → interval: `1 hour`
+6. Click **Save**
+
+### Parameterized Builds
+
+Click **Build with Parameters** in Jenkins to customize each run:
+
+| Parameter | Options | Default |
+|---|---|---|
+| `TEST_SUITE` | all / login / dashboard / requisition / referrals | all |
+| `BROWSER` | msedge / chromium | msedge |
+| `WORKERS` | 1-4 | 2 |
+| `RETRIES` | 0-3 | 2 |
+| `BASE_URL` | Any URL | `https://vhiredev.z22.web.core.windows.net` |
+| `FORCE_FRESH_LOGIN` | true / false | true |
+
+### Reports in Jenkins
+
+After each build, three report types are available:
+
+- **Test Trend Graph** – JUnit results on the build dashboard (pass/fail trends over time)
+- **Playwright Report** – Full interactive HTML report (left sidebar → "Playwright Report")
+- **Custom Dashboard** – Your custom visual dashboard (left sidebar → "Custom Dashboard")
+
+### Scheduled Runs
+
+The pipeline runs automatically on **weekdays at ~6:00 AM IST**. Change the schedule by editing the `cron` trigger in the `Jenkinsfile`.
+
+### Email Notifications
+
+Emails are sent automatically when:
+
+- ❌ **Build fails** – with links to logs and reports
+- ⚠️ **Tests are unstable** – some tests failed
+- ✅ **Build recovers** – after a previous failure
+
+Configure the SMTP server in **Manage Jenkins → System → Extended E-mail Notification**.
+
+### Docker Commands
+
+```bash
+# Build the image
+npm run docker:build
+
+# Run all tests in Docker
+npm run docker:test
+
+# Run with custom env vars
+docker run --rm --ipc=host \
+  -e CI=true \
+  -e LOOPIN_USERNAME=user@company.com \
+  -e LOOPIN_PASSWORD=secret \
+  -e LOOPIN_TOTP_SECRET=base32secret \
+  loopin-playwright
+
+# Run a specific suite
+docker run --rm --ipc=host -e CI=true loopin-playwright \
+  npx playwright test tests/04-referrals.spec.ts
+```

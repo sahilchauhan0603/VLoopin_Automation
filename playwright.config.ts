@@ -11,6 +11,10 @@ export default defineConfig({
     ["html", { open: "never", outputFolder: "playwright-report" }],
     ["list", { printSteps: true }],
     ["./src/reporters/custom-dashboard.reporter.ts"],
+    // JUnit XML output for Jenkins test trend tracking (CI only)
+    ...(process.env.CI
+      ? [["junit", { outputFile: "test-results/junit-results.xml" }] as const]
+      : []),
   ],
 
   globalSetup: "./src/config/global-setup.ts",
