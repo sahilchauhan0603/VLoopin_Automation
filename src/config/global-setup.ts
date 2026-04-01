@@ -30,14 +30,9 @@ async function globalSetup() {
     if (fs.existsSync(ENV.EDGE_PROFILE_DIR)) {
       fs.rmSync(ENV.EDGE_PROFILE_DIR, { recursive: true, force: true });
     }
-  } else if (ENV.FORCE_FRESH_LOGIN) {
-    console.log("[Global Setup] LOOPIN_FORCE_FRESH_LOGIN=true – clearing storage state (keeping Edge profile)");
-    if (fs.existsSync(ENV.STORAGE_STATE_PATH)) {
-      fs.rmSync(ENV.STORAGE_STATE_PATH, { force: true });
-    }
   }
 
-  if (!ENV.FORCE_FRESH_LOGIN && fs.existsSync(ENV.STORAGE_STATE_PATH)) {
+  if (fs.existsSync(ENV.STORAGE_STATE_PATH)) {
     const age = Date.now() - fs.statSync(ENV.STORAGE_STATE_PATH).mtimeMs;
     if (age < MAX_AGE_MS) {
       console.log(
@@ -50,6 +45,29 @@ async function globalSetup() {
 
   if (!fs.existsSync(ENV.EDGE_PROFILE_DIR)) {
     fs.mkdirSync(ENV.EDGE_PROFILE_DIR, { recursive: true });
+  }
+
+  // Check if the Edge profile has been seeded with a company account.
+  // A seeded profile will have a "Preferences" file inside the Default/ subfolder.
+  const profilePrefsPath = path.join(ENV.EDGE_PROFILE_DIR, "Default", "Preferences");
+  if (!fs.existsSync(profilePrefsPath)) {
+    console.error("");
+    console.error("\x1b[101m\x1b[37m  ERROR: EDGE PROFILE NOT SEEDED  \x1b[0m");
+    console.error("\x1b[31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
+    console.error();
+    console.error("\x1b[33m  Your organization enforces Azure AD Conditional Access.\x1b[0m");
+    console.error("\x1b[33m  Playwright requires a 'managed' Edge profile to authenticate.\x1b[0m");
+    console.error();
+    console.error("  \x1b[1mHow to fix this:\x1b[0m");
+    console.error("\x1b[32m  1. Make sure \x1b[36mLOOPIN_NUKE_PROFILE=false\x1b[32m in your \x1b[36m.env\x1b[32m file.\x1b[0m");
+    console.error("\x1b[32m  2. Run this command to sign in once:\x1b[0m");
+    console.error("     \x1b[1m\x1b[36mnpm run seed:profile\x1b[0m");
+    console.error();
+    console.error("\x1b[31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
+    console.error("");
+    
+    // Exit immediately to prevent Playwright from showing an ugly JS stack trace
+    process.exit(1);
   }
 
   console.log("[Global Setup] Launching persistent Edge context...");
@@ -68,7 +86,7 @@ async function globalSetup() {
   await page.goto(ENV.BASE_URL, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(3000);
 
-  const isLoggedIn = !ENV.FORCE_FRESH_LOGIN && !page.url().includes("/login");
+  const isLoggedIn = !page.url().includes("/login");
 
   if (isLoggedIn) {
     console.log(

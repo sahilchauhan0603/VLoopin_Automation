@@ -23,6 +23,7 @@
     "install:browsers": "npx playwright install --with-deps chromium msedge",
     "docker:build": "docker build -t loopin-playwright .",
     "docker:test": "node scripts/docker-test.js",
+    "seed:profile": "node scripts/seed-edge-profile.js",
     "clean": "npx rimraf test-results playwright-report custom-report .auth .edge-profile"
   },
   "devDependencies": {
