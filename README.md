@@ -60,15 +60,21 @@ Automation/
 
 ## How Authentication Works
 
-The framework uses `globalSetup` to create and reuse authenticated state.
+Because the organization enforces strict **Azure AD Conditional Access**, Playwright's default incognito contexts are blocked. This framework solves that by using a persistent, seeded Microsoft Edge profile.
 
-1. Before the test run, Playwright checks for `.auth/storage-state.json`.
-2. If the session is still fresh, the login step is skipped.
-3. Otherwise, a persistent Microsoft Edge context is launched.
-4. The framework completes Microsoft login and TOTP-based MFA.
-5. The authenticated session is saved and reused by the tests.
+### 1-Time Profile Seeding
+Before you can run tests (locally or via Jenkins), you must perform an interactive login once:
+```bash
+npm run seed:profile
+```
+This opens Edge so you can complete the Microsoft login and any MFA checks. Your compliant session is saved locally in `.edge-profile/` and `.auth/`.
 
-Set `LOOPIN_FORCE_FRESH_LOGIN=true` if you want a brand-new login on every run.
+### Automated Execution (`globalSetup`)
+1. Before tests run, Playwright checks for `.auth/storage-state.json`.
+2. If the session is fresh and `.edge-profile` exists, tests run headless, completely bypassing the login UI.
+3. If the session expires, a targeted re-login executes transparently.
+
+Set `LOOPIN_FORCE_FRESH_LOGIN=true` in your `.env` if you want to force the automation to fill out your credentials again (though the Edge profile itself is always preserved).
 
 ## Setup
 
@@ -211,6 +217,11 @@ Remove-Item -Path "test-results", "playwright-report", "custom-report" -Recurse 
 
 This project includes a fully configured Jenkins pipeline for automated test execution, reporting, and notifications.
 
+> **⚠️ CRITICAL - AZURE AD AZURE AD BYPASS**
+> Because Jenkins runs within Docker, it normally lacks the "managed" browser profile required to pass Azure AD checks. To fix this, the `Jenkinsfile` is engineered to actively volume-mount your local `.edge-profile` and `.auth` directories straight into the Docker container. 
+> 
+> **You MUST successfully run `npm run seed:profile` on the Windows host machine before Jenkins can pass tests.**
+
 ### Prerequisites
 
 | Requirement | Version |
@@ -288,15 +299,15 @@ After each build, three report types are available:
 
 ### Scheduled Runs
 
-The pipeline runs automatically on **weekdays at ~6:00 AM IST**. Change the schedule by editing the `cron` trigger in the `Jenkinsfile`.
+The pipeline runs automatically on **weekdays at exactly 11:00 AM IST** (05:30 UTC). Change the schedule by editing the `cron` trigger in the `Jenkinsfile`.
 
 ### Email Notifications
 
-Emails are sent automatically when:
+Professional, styled HTML emails featuring structured data tables and direct action buttons are sent automatically when:
 
-- ❌ **Build fails** – with links to logs and reports
-- ⚠️ **Tests are unstable** – some tests failed
-- ✅ **Build recovers** – after a previous failure
+- ❌ **Build fails** – High-visibility red headers.
+- ⚠️ **Tests are unstable** – Yellow headers warning that some tests failed.
+- ✅ **Build receives / succeeds** – Green headers confirming stability.
 
 Configure the SMTP server in **Manage Jenkins → System → Extended E-mail Notification**.
 
