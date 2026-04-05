@@ -123,6 +123,8 @@ docker run --rm --ipc=host ^
   -e LOOPIN_RETRIES=${params.RETRIES} ^
   -e LOOPIN_TIMEOUT=120000 ^
   -e LOOPIN_FORCE_FRESH_LOGIN=${params.FORCE_FRESH_LOGIN} ^
+  -v "C:/THIS_DEVICE/Loopin/Automation/.edge-profile:/app/.edge-profile" ^
+  -v "C:/THIS_DEVICE/Loopin/Automation/.auth:/app/.auth" ^
   -v "${wsPath}/test-results:/app/test-results" ^
   -v "${wsPath}/playwright-report:/app/playwright-report" ^
   -v "${wsPath}/custom-report:/app/custom-report" ^
