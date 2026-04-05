@@ -25,7 +25,7 @@ export class LoginPage extends BasePage {
     name: /sign in with microsoft/i,
   });
   private readonly welcomeHeading = this.page.getByRole("heading", {
-    name: /welcome to vHire portal/i,
+    name: /welcome to Loopin/i,
   });
   private readonly logo = this.page.locator('img[alt="Veersa LOOPIN Logo"]');
 

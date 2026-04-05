@@ -294,9 +294,9 @@ def sendProfessionalEmail(env, params, currentBuild, String buildStatus, String 
                 </table>
 
                 <div class="actions">
-                    <a href="${env.BUILD_URL}console" class="actions a btn-secondary">Terminal Logs</a>
-                    <a href="${env.BUILD_URL}Playwright_20Report/" class="actions a btn-primary">Playwright Report</a>
-                    <a href="${env.BUILD_URL}Custom_20Dashboard/" class="actions a btn-primary">Custom Dashboard</a>
+                    <a href="${env.BUILD_URL}console" class="btn-secondary" style="margin-right: 16px;">Terminal Logs</a>
+                    <a href="${env.BUILD_URL}Playwright_20Report/" class="btn-primary" style="margin-right: 16px;">Playwright Report</a>
+                    <a href="${env.BUILD_URL}Custom_20Dashboard/" class="btn-primary">Custom Dashboard</a>
                 </div>
             </div>
             <div class="footer">
