@@ -23,8 +23,8 @@ pipeline {
 
     // ── Triggers ────────────────────────────────────────────
     triggers {
-        // Weekdays at approximately 6:00 AM IST (00:30 UTC)
-        cron('30 0 * * 1-5')
+        // Weekdays at approximately 11:00 AM IST (05:30 UTC)
+        cron('30 5 * * 1-5')
     }
 
     // ── Build Parameters ────────────────────────────────────
@@ -192,67 +192,24 @@ docker run --rm --ipc=host ^
 
         failure {
             echo '❌ Build FAILED – sending notification...'
-            emailext(
-                subject: "❌ FAILED: Loopin Automation – ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: """
-                    <h2>❌ Build Failed</h2>
-                    <p><b>Job:</b> ${env.JOB_NAME}</p>
-                    <p><b>Build:</b> #${env.BUILD_NUMBER}</p>
-                    <p><b>Suite:</b> ${params.TEST_SUITE}</p>
-                    <p><b>Browser:</b> ${params.BROWSER}</p>
-                    <p><b>Duration:</b> ${currentBuild.durationString}</p>
-                    <p><b>Console:</b> <a href="${env.BUILD_URL}console">View Logs</a></p>
-                    <p><b>Report:</b> <a href="${env.BUILD_URL}Playwright_20Report/">Playwright Report</a></p>
-                    <p><b>Dashboard:</b> <a href="${env.BUILD_URL}Custom_20Dashboard/">Custom Dashboard</a></p>
-                """,
-                mimeType: 'text/html',
-                recipientProviders: [
-                    [$class: 'CulpritsRecipientProvider'],
-                    [$class: 'RequesterRecipientProvider']
-                ]
-            )
+            sendProfessionalEmail(env, params, currentBuild, 'FAILED', '#d73a4a', '❌')
         }
 
         unstable {
             echo '⚠️  Build UNSTABLE (some tests failed) – sending notification...'
-            emailext(
-                subject: "⚠️ UNSTABLE: Loopin Automation – ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: """
-                    <h2>⚠️ Some Tests Failed</h2>
-                    <p><b>Job:</b> ${env.JOB_NAME}</p>
-                    <p><b>Build:</b> #${env.BUILD_NUMBER}</p>
-                    <p><b>Suite:</b> ${params.TEST_SUITE}</p>
-                    <p><b>Browser:</b> ${params.BROWSER}</p>
-                    <p><b>Duration:</b> ${currentBuild.durationString}</p>
-                    <p><b>Console:</b> <a href="${env.BUILD_URL}console">View Logs</a></p>
-                    <p><b>Report:</b> <a href="${env.BUILD_URL}Playwright_20Report/">Playwright Report</a></p>
-                    <p><b>Dashboard:</b> <a href="${env.BUILD_URL}Custom_20Dashboard/">Custom Dashboard</a></p>
-                """,
-                mimeType: 'text/html',
-                recipientProviders: [
-                    [$class: 'CulpritsRecipientProvider'],
-                    [$class: 'RequesterRecipientProvider']
-                ]
-            )
+            // Use orange/yellow for unstable
+            sendProfessionalEmail(env, params, currentBuild, 'UNSTABLE', '#d08700', '⚠️')
         }
 
         fixed {
             echo '✅ Build RECOVERED – sending notification...'
-            emailext(
-                subject: "✅ RECOVERED: Loopin Automation – ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: """
-                    <h2>✅ Tests Are Passing Again</h2>
-                    <p><b>Job:</b> ${env.JOB_NAME}</p>
-                    <p><b>Build:</b> #${env.BUILD_NUMBER}</p>
-                    <p><b>Duration:</b> ${currentBuild.durationString}</p>
-                    <p><b>Report:</b> <a href="${env.BUILD_URL}Playwright_20Report/">Playwright Report</a></p>
-                """,
-                mimeType: 'text/html',
-                recipientProviders: [
-                    [$class: 'CulpritsRecipientProvider'],
-                    [$class: 'RequesterRecipientProvider']
-                ]
-            )
+            sendProfessionalEmail(env, params, currentBuild, 'RECOVERED', '#28a745', '✅')
+        }
+        
+        success {
+            // Also send a nice clean email on absolute success
+            echo '✅ Build SUCCESS – sending notification...'
+            sendProfessionalEmail(env, params, currentBuild, 'SUCCESS', '#28a745', '✅')
         }
     }
 }
@@ -271,4 +228,93 @@ def getTestCommand(String suite) {
         default:
             return 'npm run test:ci'
     }
+}
+
+// ── Helper: send a professional HTML email notification ─────────
+def sendProfessionalEmail(env, params, currentBuild, String buildStatus, String headerColor, String emoji) {
+    def subjectLine = "${emoji} [${buildStatus}] Loopin Automation – ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+    
+    // Using inline CSS as it has the best compatibility with web/desktop email clients
+    def emailBody = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #24292e; line-height: 1.5; margin: 0; padding: 0; background-color: #f6f8fa; }
+            .container { max-width: 650px; margin: 30px auto; background-color: #ffffff; border-radius: 6px; box-shadow: 0 3px 6px rgba(149,157,165,0.15); border: 1px solid #e1e4e8; overflow: hidden; }
+            .header { background-color: ${headerColor}; color: #ffffff; padding: 24px; text-align: left; }
+            .header h1 { margin: 0; font-size: 24px; font-weight: 500; letter-spacing: 0.5px; }
+            .content { padding: 32px; }
+            .intro { font-size: 16px; margin-top: 0; margin-bottom: 24px; color: #586069; }
+            .intro b { color: #24292e; }
+            
+            .info-table { width: 100%; border-collapse: collapse; margin-bottom: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-radius: 4px; overflow: hidden; border: 1px solid #eaecef; }
+            .info-table tr:nth-child(even) { background-color: #f8f9fa; }
+            .info-table th, .info-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #eaecef; font-size: 14px; }
+            .info-table th { width: 30%; color: #586069; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
+            .info-table td { font-weight: 500; color: #24292e; }
+            
+            .actions { text-align: center; margin-top: 24px; }
+            .actions a { display: inline-block; text-decoration: none; font-weight: 600; font-size: 14px; padding: 10px 20px; border-radius: 6px; margin: 0 8px 12px 8px; transition: background-color 0.2s; }
+            .btn-primary { background-color: #0366d6; color: #ffffff !important; border: 1px solid #0366d6; }
+            .btn-secondary { background-color: #ffffff; color: #0366d6 !important; border: 1px solid #0366d6; }
+            
+            .footer { background-color: #fafbfc; padding: 16px; text-align: center; font-size: 12px; color: #6a737d; border-top: 1px solid #e1e4e8; }
+            .footer a { color: #0366d6; text-decoration: none; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>${emoji} Build ${buildStatus}</h1>
+            </div>
+            <div class="content">
+                <p class="intro">
+                    Pipeline execution for <b>${env.JOB_NAME}</b> has completed with a status of <b>${buildStatus}</b>.
+                </p>
+                
+                <table class="info-table">
+                    <tr>
+                        <th>Build Number</th>
+                        <td>#${env.BUILD_NUMBER}</td>
+                    </tr>
+                    <tr>
+                        <th>Test Suite</th>
+                        <td>${params.TEST_SUITE != null ? params.TEST_SUITE : 'Not specified'}</td>
+                    </tr>
+                    <tr>
+                        <th>Browser</th>
+                        <td>${params.BROWSER != null ? params.BROWSER : 'Not specified'}</td>
+                    </tr>
+                    <tr>
+                        <th>Execution Time</th>
+                        <td>${currentBuild.durationString.replaceAll(' and counting', '')}</td>
+                    </tr>
+                </table>
+
+                <div class="actions">
+                    <a href="${env.BUILD_URL}console" class="actions a btn-secondary">Terminal Logs</a>
+                    <a href="${env.BUILD_URL}Playwright_20Report/" class="actions a btn-primary">Playwright Report</a>
+                    <a href="${env.BUILD_URL}Custom_20Dashboard/" class="actions a btn-primary">Custom Dashboard</a>
+                </div>
+            </div>
+            <div class="footer">
+                Automated notification from <strong>Jenkins CI/CD Pipeline</strong><br>
+                Please verify the logs if the build was unstable or failed.
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    emailext(
+        subject: subjectLine,
+        body: emailBody,
+        mimeType: 'text/html',
+        recipientProviders: [
+            [$class: 'CulpritsRecipientProvider'],
+            [$class: 'RequesterRecipientProvider']
+        ]
+    )
 }
