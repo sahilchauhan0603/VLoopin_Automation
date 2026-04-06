@@ -232,7 +232,7 @@ def getTestCommand(String suite) {
 
 // ── Helper: send a professional HTML email notification ─────────
 def sendProfessionalEmail(env, params, currentBuild, String buildStatus, String headerColor, String emoji) {
-    def subjectLine = "${emoji} [${buildStatus}] Loopin Automation – ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+    def subjectLine = "Loopin – ${env.JOB_NAME}"
     
     // Using inline CSS as it has the best compatibility with web/desktop email clients
     def emailBody = """
@@ -281,7 +281,7 @@ def sendProfessionalEmail(env, params, currentBuild, String buildStatus, String 
                     </tr>
                     <tr>
                         <th>Test Suite</th>
-                        <td>${params.TEST_SUITE != null ? params.TEST_SUITE : 'Not specified'}</td>
+                        <td>${params.TEST_SUITE == 'all' ? 'All (login, dashboard, requisition, referrals)' : (params.TEST_SUITE != null ? params.TEST_SUITE : 'Not specified')}</td>
                     </tr>
                     <tr>
                         <th>Browser</th>
