@@ -4,7 +4,7 @@
     "expectedRedirectPattern": "/(employee-dashboard|dashboard|requisitions)"
   },
   "loginPageValidation": {
-    "heading": "Welcome to vHire Portal",
+    "heading": "Welcome to Loopin",
     "buttonText": "Sign in with Microsoft",
     "description": "Unified Hiring System",
     "logoAlt": "Veersa LOOPIN Logo"
