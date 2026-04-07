@@ -15,7 +15,7 @@ test.describe("Referrals - Negative and Edge Coverage", () => {
       currentDesignation: "Senior QA Engineer",
       relevantExperience: "4",
       yearOfPassing: "2020",
-      email: `priya.sharma.referral.${timestamp}@example.com`,
+      email: `raghav.sharma.referral.${timestamp}@example.com`,
       ...overrides,
     };
   };
@@ -38,14 +38,26 @@ test.describe("Referrals - Negative and Edge Coverage", () => {
     await referralsPage.expectResumeRequiredError();
   });
 
-  test("TC_REFERRALS_03: Create referral successfully", async ({
+  test("TC_REFERRALS_03: Create referral successfully and verify duplicate is blocked", async ({
     referralsPage,
+    page,
   }) => {
+    // Step 1: Create a referral with a unique email
+    const referral = createReferralData();
+
     await referralsPage.uploadResume("src/data/test-resume.doc");
     await referralsPage.waitForResumeProcessingToFinish();
-    await referralsPage.fillReferralForm(createReferralData());
+    await referralsPage.fillReferralForm(referral);
     await referralsPage.submitReferral();
     await referralsPage.verifyReferralSubmissionSuccess();
+
+    // Step 2: Re-open the form and try the same email → should be blocked
+    await page.waitForURL(/employee-dashboard/i, { timeout: 30000 });
+
+    await referralsPage.openSubmitReferralForm();
+    await referralsPage.enterCandidateEmail(referral.email);
+
+    await referralsPage.verifyDuplicateReferralBlocked();
   });
 
   test("TC_REFERRALS_04: Invalid email format is blocked", async ({
@@ -253,25 +265,4 @@ test.describe("Referrals - Negative and Edge Coverage", () => {
     await expect(referralsPage.resumeRemoveBtn).toBeHidden();
   });
 
-  test("TC_REFERRALS_18: Duplicate candidate email disables a second referral", async ({
-    referralsPage,
-    page,
-  }) => {
-    const createdReferral = createReferralData({
-      email: `duplicate.referral.${Date.now()}@example.com`,
-    });
-
-    await referralsPage.uploadResume("src/data/test-resume.doc");
-    await referralsPage.waitForResumeProcessingToFinish();
-    await referralsPage.fillReferralForm(createdReferral);
-    await referralsPage.submitReferral();
-    await referralsPage.verifyReferralSubmissionSuccess();
-
-    await page.waitForURL(/employee-dashboard/i, { timeout: 30000 });
-
-    await referralsPage.openSubmitReferralForm();
-    await referralsPage.enterCandidateEmail(createdReferral.email);
-
-    await referralsPage.verifyDuplicateReferralBlocked();
-  });
 });

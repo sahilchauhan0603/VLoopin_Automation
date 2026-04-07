@@ -1,8 +1,8 @@
 {
   "validReferral": {
-    "firstName": "Priya",
+    "firstName": "Raghav",
     "lastName": "Sharma",
-    "email": "priya.sharma.referral@example.com",
+    "email": "raghav.sharma.referral@example.com",
     "phone": "9876543210",
     "currentLocation": "Noida, Uttar Pradesh",
     "totalExperience": "5",
@@ -11,7 +11,7 @@
     "currentCTC": "1500000",
     "expectedCTC": "1800000",
     "primarySkills": "Playwright, TypeScript, API Testing, Selenium",
-    "howDoYouKnow": "I have worked with Priya for more than three years on multiple enterprise QA automation projects and have directly seen her ability to design robust test strategies, mentor team members, and deliver consistently under tight deadlines.",
-    "whyRecommend": "Priya combines deep test automation expertise with strong ownership and communication. She proactively identifies quality risks, collaborates well with cross-functional teams, and consistently drives releases with confidence and measurable quality improvements."
+    "howDoYouKnow": "I have worked with Raghav for more than three years on multiple enterprise QA automation projects and have directly seen her ability to design robust test strategies, mentor team members, and deliver consistently under tight deadlines.",
+    "whyRecommend": "Raghav combines deep test automation expertise with strong ownership and communication. She proactively identifies quality risks, collaborates well with cross-functional teams, and consistently drives releases with confidence and measurable quality improvements."
   }
 }
