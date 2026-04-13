@@ -1,0 +1,128 @@
+---
+description: Checklist for adding a new feature module (page object + data + fixture + tests). Apply when creating new page objects or test suites from scratch.
+globs:
+  - src/page-objects/**/*.ts
+  - tests/**/*.spec.ts
+  - src/data/**/*.json
+  - src/fixtures/test.fixture.ts
+---
+
+# Adding New Feature Coverage
+
+When adding a new feature module (e.g., "05-interviews"), follow this checklist:
+
+## Step 1: Create Test Data
+
+Create `src/data/<feature>.data.json` with the input data the tests will use:
+```json
+{
+  "validScenario": {
+    "field1": "value1",
+    "field2": "value2"
+  }
+}
+```
+
+## Step 2: Create Page Object
+
+Create `src/page-objects/<NN>-<feature>/<feature>.page.ts`:
+
+```typescript
+import { expect } from "@playwright/test";
+import { BasePage } from "../00-shared/base.page";
+
+export interface FeatureData {
+  field1: string;
+  field2: string;
+}
+
+export class FeaturePage extends BasePage {
+  // Locators as readonly class fields
+  private readonly formCard = this.page.getByTestId("card-feature-form");
+  readonly sectionTitle = this.page.getByRole("heading", { name: /Feature/i });
+
+  async goto(): Promise<void> {
+    await this.navigateTo("/feature-route");
+    await this.page.waitForLoadState("domcontentloaded");
+  }
+
+  async verifyPageLoaded(): Promise<void> {
+    await expect(this.sectionTitle).toBeVisible({ timeout: 15000 });
+  }
+
+  // ... fill, submit, verify methods
+}
+```
+
+## Step 3: Register in Barrel Export
+
+Add to `src/page-objects/index.ts`:
+```typescript
+export { FeaturePage } from "./<NN>-<feature>/<feature>.page";
+export type { FeatureData } from "./<NN>-<feature>/<feature>.page";
+```
+
+## Step 4: Register Fixture
+
+Update `src/fixtures/test.fixture.ts`:
+
+```typescript
+import { FeaturePage } from "../page-objects/<NN>-<feature>/<feature>.page";
+
+export const test = base.extend<{
+  // existing fixtures...
+  featurePage: FeaturePage;
+}>({
+  // existing fixtures...
+  featurePage: async ({ page }, use) => {
+    await use(new FeaturePage(page));
+  },
+});
+```
+
+## Step 5: Create Test Spec
+
+Create `tests/<NN>-<feature>.spec.ts`:
+```typescript
+import { test, expect } from "../src/fixtures/test.fixture";
+import featureData from "../src/data/<feature>.data.json";
+import type { FeatureData } from "../src/page-objects/<NN>-<feature>/<feature>.page";
+
+test.describe("Feature Name - Test Suite", () => {
+  test.beforeEach(async ({ featurePage }) => {
+    await featurePage.goto();
+    await featurePage.verifyPageLoaded();
+  });
+
+  test("TC_<MODULE>_01: Description", async ({ featurePage }) => {
+    // ...
+  });
+});
+```
+
+## Step 6: Add NPM Scripts
+
+Update `package.json` scripts:
+```json
+{
+  "test:<feature>": "npx playwright test tests/<NN>-<feature>.spec.ts",
+  "test:ci:<feature>": "CI=true npx playwright test tests/<NN>-<feature>.spec.ts"
+}
+```
+
+## Step 7: Update Jenkinsfile
+
+Add the new suite to the `getTestCommand()` switch and the `TEST_SUITE` parameter choices:
+```groovy
+parameters {
+  choice(name: 'TEST_SUITE', choices: ['all', 'login', 'dashboard', 'requisition', 'referrals', '<feature>'], ...)
+}
+
+def getTestCommand(String suite) {
+  switch (suite) {
+    case '<feature>':
+      return 'npx playwright test tests/<NN>-<feature>.spec.ts --reporter=list,html,junit,./src/reporters/custom-dashboard.reporter.ts'
+    // ...
+  }
+}
+```

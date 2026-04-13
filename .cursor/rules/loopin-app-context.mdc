@@ -1,0 +1,127 @@
+---
+description: Loopin application context – the product being tested, its UI, routes, and components. Essential for writing accurate tests and locators.
+globs:
+  - src/page-objects/**/*.ts
+  - tests/**/*.spec.ts
+  - src/data/**/*.json
+---
+
+# Loopin Application Context
+
+## What Is Loopin?
+
+**Loopin** is a **Unified Hiring System** built by **Veersa Technologies**. It handles requisitions, referrals, interviews, and employee dashboards. The branding is "Veersa LOOPIN" (logo alt text: `Veersa LOOPIN Logo`).
+
+The app is a **React SPA** (single-page app) hosted on Azure Static Web Apps. The UI framework uses:
+- **Radix UI** for Select/Dropdown components
+- **Sonner** for toast notifications
+- **Quill Editor** (`.ql-editor`) for rich text fields (e.g., job descriptions)
+- **cmdk** for combobox/searchable selects
+
+## Known Routes
+
+| Route | Page | Auth Required |
+|---|---|---|
+| `/login` | Login page (Microsoft SSO) | No |
+| `/employee-dashboard` | Employee dashboard | Yes |
+| `/requisitions` | Requisition list | Yes |
+| `/requisitions/create` | Create requisition form | Yes |
+| `/referrals/submit` | Submit referral form | Yes |
+
+## Login Page (`/login`)
+
+- Heading: "Welcome to Loopin"
+- Subheading: "Unified Hiring System"
+- CTA: "Sign in with Microsoft" button → opens MSAL popup
+- Logo: `img[alt="Veersa LOOPIN Logo"]`
+- After login, redirects to `/employee-dashboard`
+
+## Microsoft SSO Flow (MSAL Popup)
+
+The popup flow has multiple conditional steps:
+1. **Edge Profile Prompt** (optional) → "Switch Edge profile" button
+2. **Account Picker** (optional) → `#otherTileText` "Use another account"
+3. **Email Input** → `input[type="email"]` + "Next" submit
+4. **Password Input** → `input[type="password"]` + "Sign in" submit
+5. **MFA Challenge** → "I can't use my Microsoft" → "Use a verification code" → TOTP code input (`input[name="otc"]`)
+6. **Stay signed in?** → "Yes" submit
+
+## Employee Dashboard (`/employee-dashboard`)
+
+Sections:
+- **My Activities** – Activity feed
+- **My Referrals** – Table of submitted referrals
+- **My Interviews** – Upcoming interviews
+- **Open Positions** – Available positions with table
+- **Refer Candidate** button → navigates to `/referrals/submit`
+
+## Requisitions (`/requisitions`)
+
+### List Page
+- Heading: `h1` with "Requisitions"
+- "Create Requisition" button: `data-testid="button-create-requisition"`
+- Search input: `data-testid="input-search-requisitions"`
+
+### Create Form (dialog)
+- Card: `data-testid="card-requisition-form"`
+- Fields use `data-testid` attributes for selects/inputs
+- Dropdown test IDs: `select-department`, `select-hiring-type`, `select-stream`, `select-designation`, `select-location`, `select-work-mode`, `select-employment-type`, `select-duration`, `select-urgency`, `select-client`, `select-project`
+- Input test IDs: `input-headcount`, `input-minimum-experience`, `input-maximum-experience`, `input-ctc-min`, `input-ctc-max`, `input-hourly-billing-rate`
+- Job title: `#roleTitle` (id-based locator)
+- Job description: `.ql-editor` (Quill rich text editor)
+- Actions: `button-submit-requisition`, `button-save-draft`
+- Success toast: "submitted for approval successfully" / "saved as draft successfully"
+
+### Form Dependencies
+- Selecting `Department` triggers a network fetch (need `waitForNetworkIdle`)
+- Selecting `Client` also triggers a network fetch for projects
+
+### Validation Rules
+- **Submit for Approval**: All fields required
+- **Save as Draft**: Only first 7 fields (Job Title, Department, Hiring Type, Stream, Designation, Location, Work Mode) + Job Description required
+
+## Referrals (`/referrals/submit`)
+
+### Form Elements (data-testid)
+- `input-resume` (file input)
+- `input-candidate-first-name`, `input-candidate-last-name`
+- `input-candidate-email`, `input-candidate-phone`
+- `input-candidate-pan`, `input-candidate-location`
+- `select-requisition`
+- `input-total-experience`, `input-relevant-experience`
+- `input-current-company`, `input-current-designation`
+- `input-current-ctc`, `input-expected-ctc`
+- `input-notice-period`
+- `textarea-primary-skills`
+- `input-year-of-passing`
+- `select-relationship`
+- `textarea-how-know`, `textarea-why-recommend`
+
+### Resume Upload
+- Opens a "Resume Upload Information" alertdialog with "Got it" button
+- Accepts: PDF, DOC, DOCX only
+- Max size: 5MB
+- Shows "Parsing resume..." text during processing
+
+### Validation Rules (Toast Messages)
+| Rule | Toast |
+|---|---|
+| Invalid email | "Please enter a valid email address." |
+| PAN < 10 chars | "PAN must be exactly 10 characters." |
+| PAN format wrong | "Invalid PAN format." |
+| Relevant exp > total | "Relevant experience cannot be greater than total experience." |
+| Expected CTC < current | "Expected CTC cannot be less than Current CTC." |
+| Year < 1950 or > current | "Year of Passing must be between 1950 and {year}." |
+| "How do you know" < 50 chars | '"How do you know this person?" must be at least 50 characters' |
+| "Why recommend" < 100 chars | '"Why are you recommending?" must be at least 100 characters' |
+| Relationship missing | "Relationship to Candidate is required" |
+| Requisition missing | "Please select a requisition and ensure you are logged in." |
+| Resume missing | "Resume is required. Please upload candidate's resume" |
+| Negative experience | "Total Experience cannot be negative." |
+| Invalid file type | "Only PDF, DOC, and DOCX files are allowed" |
+| File > 5MB | "File size must be less than 5MB" |
+| Duplicate email | "You can't submit a referral for this candidate as they are already registered in our system." (inline warning, not toast) |
+
+### Success
+- Toast containing "success" or "submitted"
+- Redirects to `/employee-dashboard`

@@ -1,0 +1,122 @@
+---
+description: Rules for writing new page objects – locators, methods, and inheritance patterns. Apply when creating or editing files in src/page-objects/.
+globs:
+  - src/page-objects/**/*.ts
+---
+
+# Page Object Conventions
+
+## Inheritance
+
+All page objects **must** extend `BasePage` from `src/page-objects/00-shared/base.page.ts`.
+
+```typescript
+import { BasePage } from "../00-shared/base.page";
+
+export class MyNewPage extends BasePage {
+  // ...
+}
+```
+
+## BasePage Provides
+
+These methods are inherited — use them instead of raw Playwright calls:
+
+| Method | Use For |
+|---|---|
+| `navigateTo(path)` | Go to a route (auto-prepends `BASE_URL`) |
+| `waitForUrl(pattern, timeout)` | Wait for URL to match |
+| `getCurrentUrl()` | Get current URL |
+| `clickElement(locator)` | Wait + click |
+| `fillInput(locator, value)` | Wait + clear + fill |
+| `selectDropdownByTestId(testId, optionText)` | Open Radix Select → pick option (3 fallback strategies) |
+| `getToastMessage()` | Get text from toast/sonner notification |
+| `waitForLoadingToDisappear()` | Wait for `.animate-spin` to vanish |
+| `waitForNetworkIdle(timeout)` | Wait for network idle |
+| `isElementVisible(locator, timeout)` | Try/catch visibility check → boolean |
+
+## Locator Strategy (Priority Order)
+
+1. **`getByTestId("...")`** — preferred when the app has `data-testid` attributes
+2. **`getByRole("...", { name: /.../ })`** — for buttons, headings, links
+3. **`page.locator('...')`** — CSS selector as fallback
+4. **Never use XPath** unless absolutely required
+
+## Locator Declaration
+
+Declare locators as **readonly class fields** (not inside methods):
+
+```typescript
+export class MyPage extends BasePage {
+  // ✅ Correct – field-level, readonly
+  private readonly saveBtn = this.page.getByTestId("button-save");
+  readonly sectionTitle = this.page.getByRole("heading", { name: /My Section/i });
+
+  // ❌ Wrong – locator created inside method
+  async doSomething() {
+    const btn = this.page.getByTestId("button-save"); // Don't do this
+  }
+}
+```
+
+- Use `private readonly` for locators only used internally
+- Use `readonly` (public) for locators that tests assert on directly (e.g., `employeeDashboardPage.myActivitiesSection`)
+
+## Method Patterns
+
+| Type | Naming | Returns | Example |
+|---|---|---|---|
+| Navigation | `goto()`, `openXxxForm()` | `Promise<void>` | `async goto()` |
+| Form fill | `fillXxx(value)` | `Promise<void>` | `async fillJobTitle(title: string)` |
+| Dropdown | `selectXxx(value)` | `Promise<void>` | `async selectDepartment(dept: string)` |
+| Assertion | `verifyXxx()`, `expectXxx()` | `Promise<void>` | `async verifyFormVisible()` |
+| Composite | `fillFormData(data)` | `Promise<void>` | `async fillReferralForm(data: ReferralData)` |
+
+## Interfaces
+
+Define data interfaces in the page object file if they represent the form's input shape:
+
+```typescript
+export interface RequisitionData {
+  jobTitle: string;
+  department: string;
+  // ...
+}
+```
+
+## Barrel Export
+
+After creating a new page object, register it in `src/page-objects/index.ts`:
+
+```typescript
+export { MyNewPage } from "./05-feature/my-new.page";
+export type { MyNewData } from "./05-feature/my-new.page";
+```
+
+## Dropdown Handling
+
+The app uses **Radix UI Select** components. Use `selectDropdownByTestId()` from BasePage which handles:
+1. Clicking the trigger
+2. Waiting for the portal/listbox
+3. Finding the option via role, then regex, then text
+
+For `cmdk`-based select/combobox components (like requisition/relationship selects in referrals), use the `selectFirstAvailableOption()` pattern from ReferralsPage.
+
+## Toast / Sonner Assertions
+
+The app uses **Sonner** for toasts. Use these locator patterns:
+```typescript
+// Generic toast
+this.page.locator('[role="status"], [data-sonner-toast]').first();
+
+// Specific message
+this.page.locator('[role="status"], [data-sonner-toast], .sonner-toast')
+  .filter({ hasText: /success|submitted/i });
+```
+
+## File Naming
+
+```
+src/page-objects/<NN>-<feature>/<feature-name>.page.ts
+```
+Examples: `01-login/login.page.ts`, `04-referrals/referrals.page.ts`

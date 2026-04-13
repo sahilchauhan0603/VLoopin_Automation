@@ -1,0 +1,69 @@
+---
+description: Playwright configuration context – timeouts, browser setup, reporter config. Apply when modifying playwright.config.ts or src/config/.
+globs:
+  - playwright.config.ts
+  - src/config/**/*.ts
+  - src/reporters/**/*.ts
+---
+
+# Playwright Configuration Reference
+
+## playwright.config.ts
+
+```typescript
+testDir: "./tests"
+fullyParallel: true
+forbidOnly: !!process.env.CI
+retries: ENV.RETRIES                    // 2 in CI, 1 local
+workers: ENV.WORKERS                    // Default 1
+
+browser: "chromium" (channel: "msedge") // Always Edge
+baseURL: ENV.BASE_URL
+storageState: ENV.STORAGE_STATE_PATH    // .auth/storage-state.json
+
+trace: "retain-on-failure"
+screenshot: "only-on-failure"
+video: "retain-on-failure"
+actionTimeout: 20000
+navigationTimeout: 45000
+
+globalSetup: "./src/config/global-setup.ts"
+timeout: ENV.TIMEOUT                    // From .env (typically 60000)
+expect.timeout: 15000
+outputDir: "test-results"
+```
+
+## Reporters
+
+| Reporter | Config | CI Only? |
+|---|---|---|
+| HTML | `open: "never"`, `outputFolder: "playwright-report"` | No |
+| List | `printSteps: true` | No |
+| Custom Dashboard | `./src/reporters/custom-dashboard.reporter.ts` | No |
+| JUnit XML | `outputFile: "test-results/junit-results.xml"` | Yes |
+
+## globalSetup Flow
+
+1. Check if credentials exist → skip if not
+2. If `NUKE_PROFILE=true` → delete `.auth/` and `.edge-profile/`
+3. Check `.auth/storage-state.json` age → skip if < 1 hour
+4. Verify `.edge-profile/Default/Preferences` exists → error with instructions if not
+5. Launch persistent Edge context → headless
+6. Check if already logged in (URL doesn't contain `/login`)
+7. If not → perform MSAL + TOTP login
+8. Save storageState → close context
+
+## Timeout Hierarchy
+
+```
+Global test timeout:  ENV.TIMEOUT (60000ms default)
+Navigation timeout:   45000ms
+Action timeout:       20000ms
+Expect timeout:       15000ms
+```
+
+## Project Structure
+
+Single project named `e2e-tests` matching all `*.spec.ts` files.
+
+No separate "setup" project – globalSetup handles auth. The `auth.setup.ts` file in fixtures is available as an alternative but currently unused in the config.

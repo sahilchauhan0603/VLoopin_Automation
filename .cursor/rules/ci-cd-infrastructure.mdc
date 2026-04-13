@@ -1,0 +1,80 @@
+---
+description: CI/CD and infrastructure context – Jenkins pipeline, Docker, credential mgmt. Apply when modifying Jenkinsfile, Dockerfile, or scripts/.
+globs:
+  - Jenkinsfile
+  - Dockerfile
+  - scripts/**/*
+  - .env.example
+---
+
+# CI/CD & Infrastructure
+
+## Jenkins Pipeline Architecture
+
+```
+Windows Jenkins Host → Docker Linux Container → Playwright + Edge → Reports back to Host
+```
+
+### Pipeline Flow
+1. **Prepare Workspace** – Create output directories on Windows host
+2. **Run Tests in Docker** – `docker run` with volume mounts and credential injection
+3. **Post-build** – Publish JUnit, Playwright HTML, Custom Dashboard reports; send email
+
+### Credential Injection
+Jenkins credentials (`withCredentials`) are passed as `-e` flags to `docker run`:
+- `LOOPIN_USERNAME`
+- `LOOPIN_PASSWORD_ENCRYPTED`
+- `LOOPIN_PASSWORD_KEY`
+- `LOOPIN_TOTP_SECRET`
+
+### Volume Mounts (Critical)
+The Docker container mounts:
+```
+C:/THIS_DEVICE/Loopin/Automation/.edge-profile → /app/.edge-profile  (Azure AD profile)
+C:/THIS_DEVICE/Loopin/Automation/.auth          → /app/.auth          (storage state)
+${WORKSPACE}/test-results                       → /app/test-results
+${WORKSPACE}/playwright-report                  → /app/playwright-report
+${WORKSPACE}/custom-report                      → /app/custom-report
+```
+
+### Schedule
+Weekdays at 11:00 AM IST (cron: `30 5 * * 1-5`)
+
+### Parameters
+| Param | Type | Default |
+|---|---|---|
+| `TEST_SUITE` | Choice | `all` |
+| `BROWSER` | Choice | `msedge` |
+| `WORKERS` | String | `2` |
+| `RETRIES` | String | `2` |
+| `BASE_URL` | String | `https://vhiredev.z22.web.core.windows.net` |
+| `FORCE_FRESH_LOGIN` | Boolean | `false` |
+
+### Email Notifications
+Uses `emailext` plugin with professional styled HTML. Sends on: `failure`, `unstable`, `fixed`, `success`.
+
+## Dockerfile
+
+Based on `mcr.microsoft.com/playwright:v1.52.0-noble`. Adds Microsoft Edge Stable. Steps:
+1. Install Edge via Microsoft APT repo
+2. `npm ci` for deps
+3. `npx playwright install --with-deps chromium`
+4. Copy project
+5. Default CMD: `npm run test:ci`
+
+## Helper Scripts
+
+### `scripts/seed-edge-profile.js`
+Opens Edge with a persistent profile so the user can complete interactive Microsoft login. Saves profile to `.edge-profile/`.
+
+### `scripts/encrypt-password.js`
+CLI tool to encrypt passwords using AES-256-GCM. Generates `LOOPIN_PASSWORD_ENCRYPTED` and `LOOPIN_PASSWORD_KEY` for `.env`.
+
+### `scripts/docker-test.js`
+Convenience wrapper to build and run Docker tests locally with proper volume mounts.
+
+## Password Encryption
+
+Format: `encv1:<iv-base64>:<auth-tag-base64>:<ciphertext-base64>`
+Algorithm: AES-256-GCM with 12-byte IV and 16-byte auth tag.
+Key: 32-byte random key encoded in base64.

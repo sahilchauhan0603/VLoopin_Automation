@@ -1,0 +1,104 @@
+---
+description: High-level overview of the Loopin Automation project – architecture, tech stack, and conventions. Always read first for any task.
+globs:
+alwaysApply: true
+---
+
+# Loopin Automation – Project Overview
+
+## What Is This?
+
+A **Playwright + TypeScript UI automation framework** for **Loopin** (formerly branded vHire), an internal HR/hiring platform by Veersa Technologies. The app is hosted as an Azure Static Web App at `https://vhiredev.z22.web.core.windows.net`.
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Test framework | Playwright `@playwright/test` (latest) |
+| Language | TypeScript (strict) |
+| Browser | Microsoft Edge (Chromium channel `msedge`) |
+| Auth | Microsoft MSAL popup + TOTP MFA via `speakeasy` |
+| Config | `dotenv` for env vars |
+| CI/CD | Jenkins → Docker (Linux container on Windows host) |
+| Reporting | Playwright HTML + custom dashboard reporter + JUnit XML |
+
+## Architecture Pattern
+
+```
+Page Object Model (POM) + Data-Driven + Fixture Injection
+```
+
+- **Page Objects** encapsulate all locators and interactions (`src/page-objects/`)
+- **Test Data** is externalized to JSON files (`src/data/`)
+- **Fixtures** inject page objects into tests (`src/fixtures/test.fixture.ts`)
+- **Tests** are pure orchestration – no locators, no selectors (`tests/*.spec.ts`)
+
+## Key Directories
+
+```
+src/
+├── config/          → env.config.ts (env parsing), global-setup.ts (auth bootstrapping)
+├── data/            → JSON test data files + test-resume.doc
+├── fixtures/        → Playwright fixtures (test.fixture.ts, auth.setup.ts)
+├── page-objects/    → POM classes grouped by feature
+│   ├── 00-shared/   → BasePage (abstract base for all page objects)
+│   ├── 01-login/    → LoginPage
+│   ├── 02-requisitions/ → RequisitionListPage, RequisitionFormPage
+│   ├── 03-employee-dashboard/ → EmployeeDashboardPage
+│   └── 04-referrals/ → ReferralsPage
+├── reporters/       → custom-dashboard.reporter.ts
+└── utils/           → password-crypto.ts, totp.helper.ts
+
+tests/               → Spec files (01-login, 02-employee-dashboard, 03-requisition, 04-referrals)
+scripts/             → Node.js helper scripts (encrypt-password, docker-test, seed-edge-profile)
+```
+
+## Numbering Convention
+
+Features are numbered `01-`, `02-`, `03-`, `04-` consistently across page-objects, data files, and test specs. New features should continue the numbering (e.g., `05-interviews`).
+
+## Authentication Model
+
+The organization enforces **Azure AD Conditional Access**, so Playwright's default incognito contexts fail. The solution:
+
+1. **One-time seed**: `npm run seed:profile` opens Edge for manual login → saves profile to `.edge-profile/`
+2. **globalSetup**: Uses `chromium.launchPersistentContext()` with the Edge profile, performs automated MSAL + TOTP login, saves `storageState` to `.auth/storage-state.json`
+3. **Tests**: Reuse the saved `storageState` via `playwright.config.ts` → no login needed in each test
+
+## Environment Variables (from .env)
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `LOOPIN_BASE_URL` | ✅ | App URL |
+| `LOOPIN_USERNAME` | ✅ | Microsoft login email |
+| `LOOPIN_PASSWORD` or `LOOPIN_PASSWORD_ENCRYPTED` + `LOOPIN_PASSWORD_KEY` | ✅ | Password (plain or AES-256-GCM encrypted) |
+| `LOOPIN_TOTP_SECRET` | ✅ | Base32 TOTP secret for MFA |
+| `LOOPIN_TIMEOUT` | ✅ | Global test timeout (ms) |
+| `LOOPIN_RETRIES` | ❌ | Retry count (default: 2 in CI, 1 locally) |
+| `LOOPIN_WORKERS` | ❌ | Parallel workers (default: 1) |
+| `LOOPIN_NUKE_PROFILE` | ❌ | Delete Edge profile on startup |
+| `LOOPIN_FORCE_FRESH_LOGIN` | ❌ | Force re-login ignoring cached state |
+
+## NPM Scripts
+
+| Command | What It Does |
+|---|---|
+| `npm test` | Run all tests |
+| `npm run test:login` | Run login spec only |
+| `npm run test:dashboard` | Run dashboard spec only |
+| `npm run test:requisition` | Run requisition spec only |
+| `npm run test:referrals` | Run referral spec only |
+| `npm run test:ci` | Run all tests in CI mode |
+| `npm run seed:profile` | Interactive Edge login for profile seeding |
+| `npm run encrypt:password` | Encrypt a password for .env |
+| `npm run docker:build` | Build Docker image |
+| `npm run docker:test` | Run tests in Docker |
+
+## Current Test Coverage
+
+| Spec File | Tests | Area |
+|---|---|---|
+| `01-login.spec.ts` | 5 TCs | Login page branding, MSAL login, SSO redirect |
+| `02-employee-dashboard.spec.ts` | 6 TCs | Dashboard sections visibility, CTA buttons |
+| `03-requisition.spec.ts` | 6 TCs | Create requisition, drafts, validation |
+| `04-referrals.spec.ts` | 17 TCs | Full positive/negative/edge coverage |

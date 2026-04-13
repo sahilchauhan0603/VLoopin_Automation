@@ -1,0 +1,131 @@
+---
+description: Rules for writing test spec files – imports, data-driven patterns, fixture usage. Apply when creating or editing files in tests/.
+globs:
+  - tests/**/*.spec.ts
+---
+
+# Test Spec Conventions
+
+## Imports
+
+Always import `test` and `expect` from the custom fixture, **never** from `@playwright/test` directly:
+
+```typescript
+// ✅ Correct
+import { test, expect } from "../src/fixtures/test.fixture";
+
+// ❌ Wrong
+import { test, expect } from "@playwright/test";
+```
+
+Import test data from `src/data/`:
+```typescript
+import referralData from "../src/data/referral.data.json";
+import type { ReferralData } from "../src/page-objects/04-referrals/referrals.page";
+```
+
+## Test ID Naming
+
+```
+TC_<MODULE>_<NN>: <Description>
+```
+Examples:
+- `TC_LOGIN_01: Verify login page loads with correct branding`
+- `TC_REFERRALS_03: Create referral successfully and verify duplicate is blocked`
+- `TC_REQ_05: Verify Save as Draft enforces only the first 7 fields`
+
+## File Naming
+
+```
+tests/<NN>-<feature>.spec.ts
+```
+Continue the numbering: `01-login`, `02-employee-dashboard`, `03-requisition`, `04-referrals`, next would be `05-xxx`.
+
+## Available Fixtures
+
+These page objects are auto-injected via destructuring from the test function:
+
+```typescript
+test("My test", async ({
+  page,                    // Playwright Page
+  loginPage,               // LoginPage
+  requisitionListPage,     // RequisitionListPage
+  requisitionFormPage,     // RequisitionFormPage
+  employeeDashboardPage,   // EmployeeDashboardPage
+  referralsPage,           // ReferralsPage
+}) => {
+  // ...
+});
+```
+
+When adding a new page object, also register it in `src/fixtures/test.fixture.ts`.
+
+## Test Structure
+
+Use `test.describe()` for grouping:
+
+```typescript
+test.describe("Feature Name - Test Suite", () => {
+  test.beforeEach(async ({ pageObject }) => {
+    await pageObject.goto();
+    await pageObject.verifyPageLoaded();
+  });
+
+  test("TC_XXX_01: Description", async ({ pageObject }) => {
+    // Arrange → Act → Assert
+  });
+});
+```
+
+## Data-Driven Pattern
+
+For tests that need record-like input, use JSON data + type assertion:
+
+```typescript
+const testData = requisitionData.qaEngineerRequisition as RequisitionData;
+await requisitionFormPage.fillRequisitionForm(testData);
+```
+
+For referrals with unique emails per run:
+
+```typescript
+const createReferralData = (overrides: Partial<ReferralData> = {}): ReferralData => {
+  const timestamp = Date.now();
+  return {
+    ...baseReferralData,
+    email: `test.user.${timestamp}@example.com`,
+    ...overrides,
+  };
+};
+```
+
+## Auth Context
+
+- Login tests **must** clear stored auth: `test.use({ storageState: { cookies: [], origins: [] } });`
+- All other tests rely on global `storageState` from `playwright.config.ts` (no explicit `test.use` needed)
+
+## Skipping Tests
+
+Use `test.skip()` for conditional skips:
+```typescript
+test.skip(!ENV.hasCredentials, "No credentials configured");
+```
+
+## Assertions
+
+- Use `expect(locator).toBeVisible()` for UI presence checks
+- Use `expect(locator).toBeEnabled()` / `toBeDisabled()` for interactability
+- Use `expect(url).toMatch(pattern)` for URL checks
+- Use page object `verify*()` / `expect*()` methods when available (they handle timeouts internally)
+
+## Toast Assertions (Sonner)
+
+For validation error messages:
+```typescript
+await referralsPage.expectToast(/PAN must be exactly 10 characters\./i);
+```
+
+For success:
+```typescript
+await referralsPage.verifyReferralSubmissionSuccess();
+```
